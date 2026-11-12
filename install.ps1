@@ -107,10 +107,34 @@ Copy-Item (Join-Path $kitRoot "plugins\board-guard.js") (Join-Path $pluginsDir "
 Write-Host "    config dosyalari yazildi." -ForegroundColor Green
 
 Write-Step "Ajan Panosu kuruluyor"
+$stage = Join-Path $configDir ("agent-board.stage-" + [guid]::NewGuid().ToString("N"))
+if (Test-Path $stage) {
+  Remove-Item $stage -Recurse -Force
+}
+New-Item -ItemType Directory -Force -Path $stage | Out-Null
+Copy-Item (Join-Path $kitRoot "agent-board\*") $stage -Recurse -Force
+
+if (-not (Test-Path (Join-Path $stage "server.mjs")) -or -not (Test-Path (Join-Path $stage "index.html"))) {
+  throw "Ajan Panosu staging kopyasi eksik. Kurulum durduruldu; mevcut kurulum korunuyor."
+}
+
+if (Test-Path (Join-Path $agentBoardDir "guard.log")) {
+  Copy-Item (Join-Path $agentBoardDir "guard.log") (Join-Path $stage "guard.log") -Force
+}
+
+$defaultConfigDir = Join-Path $env:USERPROFILE ".config\opencode"
+if ($configDir -eq $defaultConfigDir) {
+  $panelPids = @(Get-NetTCPConnection -LocalPort 43124 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique)
+  foreach ($panelPid in $panelPids) {
+    Stop-Process -Id $panelPid -Force -ErrorAction SilentlyContinue
+  }
+  Start-Sleep -Milliseconds 300
+}
+
 if (Test-Path $agentBoardDir) {
   Remove-Item $agentBoardDir -Recurse -Force
 }
-Copy-Item (Join-Path $kitRoot "agent-board") $agentBoardDir -Recurse -Force
+Move-Item $stage $agentBoardDir -Force
 
 $startVbs = Join-Path $agentBoardDir "start.vbs"
 $vbs = @"

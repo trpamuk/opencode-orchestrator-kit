@@ -1,6 +1,6 @@
 # OpenCode Orchestrator Kit
 
-**Version:** 0.1.1  
+**Version:** 0.1.2  
 **Platform:** Windows 10/11  
 **Status:** early public preview
 
@@ -118,6 +118,19 @@ If the Browser entry is missing after an OpenCode update, fully quit and reopen 
 
 The kit never writes provider API keys.
 
+### Re-running the installer
+
+The installer is safe to re-run. It:
+
+- stops the local dashboard server first,
+- copies the dashboard into a staging folder and validates it,
+- preserves the existing `guard.log`,
+- backs up the current config and dashboard,
+- swaps the new files into place,
+- restarts the dashboard and checks `/health`.
+
+If the staging copy is incomplete, the installer stops before touching the current dashboard.
+
 ---
 
 ## Dashboard
@@ -231,7 +244,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Türkçe
 
-**Sürüm:** 0.1.1  
+**Sürüm:** 0.1.2  
 **Platform:** Windows 10/11
 
 Bu kit, OpenCode Desktop + OMO-slim + Ajan Panosu + Board Guard kurulumunu tek tıkla yapar.

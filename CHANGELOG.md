@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.2 - 2026-11-12
+
+- Made the installer safe to re-run
+- Stop the dashboard before replacing its files
+- Stage and validate the dashboard before swapping it in
+- Preserve the existing `guard.log`
+- Back up the current dashboard directory
+- Keep the current dashboard intact if staging fails
+- Added a README section explaining safe re-installation
+
 ## 0.1.1 - 2026-11-12
 
 - Rewrote the main README for a global English-speaking audience
