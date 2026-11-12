@@ -1,7 +1,13 @@
+param(
+  [string]$ConfigDir = (Join-Path $env:USERPROFILE ".config\opencode"),
+  [switch]$NoShortcuts,
+  [switch]$NoStart
+)
+
 $ErrorActionPreference = "Stop"
 
 $kitRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-$configDir = Join-Path $env:USERPROFILE ".config\opencode"
+$configDir = $ConfigDir
 $backupRoot = Join-Path $configDir ("backups\" + (Get-Date -Format "yyyyMMdd-HHmmss") + "-orchestrator-kit")
 $agentBoardDir = Join-Path $configDir "agent-board"
 $pluginsDir = Join-Path $configDir "plugins"
@@ -113,39 +119,47 @@ sh.Run """$($node.Source)"" ""$agentBoardDir\server.mjs""", 0, False
 "@
 Set-Content -Path $startVbs -Value $vbs -Encoding ASCII
 
-$urlShortcut = Join-Path $desktopDir "Ajan Panosu.url"
-@"
+if (-not $NoShortcuts) {
+  $urlShortcut = Join-Path $desktopDir "Ajan Panosu.url"
+  @"
 [InternetShortcut]
 URL=http://127.0.0.1:43124/
 IconFile=C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
 IconIndex=0
 "@ | Set-Content -Path $urlShortcut -Encoding ASCII
 
-$ws = New-Object -ComObject WScript.Shell
-$lnkPath = Join-Path $startupDir "Ajan Panosu.lnk"
-$lnk = $ws.CreateShortcut($lnkPath)
-$lnk.TargetPath = "$env:WINDIR\System32\wscript.exe"
-$lnk.Arguments = '"' + $startVbs + '"'
-$lnk.WorkingDirectory = $agentBoardDir
-$lnk.WindowStyle = 7
-$lnk.Description = "Ajan Panosu yerel sunucusu"
-$lnk.Save()
-Write-Host "    Startup: $lnkPath" -ForegroundColor Green
-
-Write-Step "Panel baslatiliyor"
-Start-Process -FilePath "$env:WINDIR\System32\wscript.exe" -ArgumentList ('"' + $startVbs + '"') -WindowStyle Hidden
-$ready = $false
-for ($i = 0; $i -lt 20; $i++) {
-  Start-Sleep -Milliseconds 500
-  try {
-    $health = Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:43124/health" -TimeoutSec 2
-    if ($health.StatusCode -eq 200) { $ready = $true; break }
-  } catch {}
-}
-if ($ready) {
-  Write-Host "    Panel hazir: http://127.0.0.1:43124/" -ForegroundColor Green
+  $ws = New-Object -ComObject WScript.Shell
+  $lnkPath = Join-Path $startupDir "Ajan Panosu.lnk"
+  $lnk = $ws.CreateShortcut($lnkPath)
+  $lnk.TargetPath = "$env:WINDIR\System32\wscript.exe"
+  $lnk.Arguments = '"' + $startVbs + '"'
+  $lnk.WorkingDirectory = $agentBoardDir
+  $lnk.WindowStyle = 7
+  $lnk.Description = "Ajan Panosu yerel sunucusu"
+  $lnk.Save()
+  Write-Host "    Startup: $lnkPath" -ForegroundColor Green
 } else {
-  Write-Host "    Panel henuz yanit vermedi. start.vbs dosyasini calistirip tekrar dene." -ForegroundColor Yellow
+  Write-Host "    Kisayollar atlandi (NoShortcuts)." -ForegroundColor DarkGray
+}
+
+if (-not $NoStart) {
+  Write-Step "Panel baslatiliyor"
+  Start-Process -FilePath "$env:WINDIR\System32\wscript.exe" -ArgumentList ('"' + $startVbs + '"') -WindowStyle Hidden
+  $ready = $false
+  for ($i = 0; $i -lt 20; $i++) {
+    Start-Sleep -Milliseconds 500
+    try {
+      $health = Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:43124/health" -TimeoutSec 2
+      if ($health.StatusCode -eq 200) { $ready = $true; break }
+    } catch {}
+  }
+  if ($ready) {
+    Write-Host "    Panel hazir: http://127.0.0.1:43124/" -ForegroundColor Green
+  } else {
+    Write-Host "    Panel henuz yanit vermedi. start.vbs dosyasini calistirip tekrar dene." -ForegroundColor Yellow
+  }
+} else {
+  Write-Host "    Panel baslatma atlandi (NoStart)." -ForegroundColor DarkGray
 }
 
 Write-Host ""
