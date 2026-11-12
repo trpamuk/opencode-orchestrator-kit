@@ -1,6 +1,6 @@
 # OpenCode Orchestrator Kit
 
-**Version:** 0.1.3  
+**Version:** 0.1.4  
 **Platform:** Windows 10/11  
 **Status:** early public preview
 
@@ -277,7 +277,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Türkçe
 
-**Sürüm:** 0.1.3  
+**Sürüm:** 0.1.4  
 **Platform:** Windows 10/11
 
 Bu kit, OpenCode Desktop + OMO-slim + Ajan Panosu + Board Guard kurulumunu tek tıkla yapar.

@@ -314,8 +314,7 @@ function boardTable(board){
 }
 function renderBoards(){
   const all=state.boards||[];
-  const featureBoards=all.filter(board=>!board.legacy || /^#\s*Güncel Görevler/m.test(board.text||""));
-  const boards=(featureBoards.length?featureBoards:all).slice().sort((a,b)=>{
+  const boards=all.filter(board=>!board.legacy || parseBoard(board.text||"").length>0).slice().sort((a,b)=>{
     const aa=a.legacy?1:0, bb=b.legacy?1:0;
     return aa-bb || (b.mtime||0)-(a.mtime||0);
   });

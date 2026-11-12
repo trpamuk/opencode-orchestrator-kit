@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4 - 2026-11-12
+
+- Hide the legacy `current.md` board when it is only an index without a task table
+
 ## 0.1.3 - 2026-11-12
 
 - Added **Alt Görevler** to the dashboard: running `subagent`/`task` tool calls are shown even when no child session exists
