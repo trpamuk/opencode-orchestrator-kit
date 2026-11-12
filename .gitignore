@@ -3,6 +3,9 @@ dist/
 *.zip
 *.7z
 
+# Local orchestration state
+.opencode/
+
 # Secrets and local state
 service.json
 .env

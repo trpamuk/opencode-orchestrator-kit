@@ -11,6 +11,8 @@ OpenCode 2.x için canlı, yerel ajan ve görev panosu.
 ## Ne gösterir?
 
 - Seçili projedeki tüm oturumlar: resmi ajan adı, `#ajan-id`, model, ana/alt oturum, oturum kimliği, proje, süre, son işlem, token ve maliyet.
+- **Alt Görevler**: oturum içinde çalışan `subagent`/`task` tool çağrıları; alt oturum oluşmasa bile görünür.
+- **takıldı?** durumu: 15 dakikadır güncellenmeyen oturum veya alt görev kırmızı işaretlenir.
 - Ajan görselleri: OMO-slim'in resmi ajan görsellerinden üretilmiş 128 px avatarlar.
 - Ajan rehberi: orchestrator, explorer, fixer, designer, oracle, observer, arbiter, paladin, proctor, hunter, build, plan.
 - Görevler: proje alanındaki her board ayrı kart olarak gösterilir; `current.md` legacy/index ise gizlenir.

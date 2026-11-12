@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.3 - 2026-11-12
+
+- Added **Alt Görevler** to the dashboard: running `subagent`/`task` tool calls are shown even when no child session exists
+- Added a **takıldı?** state for sessions and subagent tasks with no update for 15 minutes
+- Added a stuck count to the header and project selector
+- The active filter now keeps stale active sessions and sessions with running subagent tasks visible
+- Child and worktree sessions are attached to their parent project
+- Added `backgroundJobs.wallClockTimeoutMs: 1800000` to the OMO-slim config as a 30-minute safety net
+- Documented the native background-subagent hang and the dashboard warning path
+
 ## 0.1.2 - 2026-11-12
 
 - Made the installer safe to re-run

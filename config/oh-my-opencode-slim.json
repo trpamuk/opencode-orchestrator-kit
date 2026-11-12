@@ -101,7 +101,8 @@
   "backgroundJobs": {
     "concurrency": {
       "defaultConcurrency": 2
-    }
+    },
+    "wallClockTimeoutMs": 1800000
   },
   "companion": {
     "enabled": false,

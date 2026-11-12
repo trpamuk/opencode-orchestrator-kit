@@ -53,6 +53,13 @@
   .badge.done { color:var(--blue); border-color:#164e63; background:#082f49; }
   .badge.failed { color:var(--red); border-color:#7f1d1d; background:#2a0a0a; }
   .badge.idle { color:var(--muted); }
+  .badge.stuck { color:var(--red); border-color:#7f1d1d; background:#2a0a0a; }
+  .agent.stuck { border-color:#7f1d1d; background:#160d0d; }
+  .task-card { display:grid; grid-template-columns:34px minmax(0,1fr); gap:9px; border:1px solid var(--line); background:var(--panel); border-radius:9px; padding:8px 10px; margin:6px 0; }
+  .task-card.stuck { border-color:#7f1d1d; background:#1a0f0f; }
+  .task-card .avatar { width:30px; height:30px; }
+  .task-title { color:#d7d7de; font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .task-meta { color:var(--muted); font-size:9px; margin-top:2px; display:flex; flex-wrap:wrap; gap:6px; }
   .pill { font-size:9px; border:1px solid var(--line); border-radius:99px; padding:1px 5px; color:var(--muted); white-space:nowrap; }
   .role { color:#a1a1aa; font-size:10px; margin-top:5px; }
   .parent { color:#71717a; font-size:9px; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -101,6 +108,11 @@
       </div>
     </div>
     <div class="summary" id="summary"></div>
+    <div class="section-head" id="taskHead" style="display:none">
+      <h2>Alt Görevler</h2>
+      <span class="muted" id="taskSummary"></span>
+    </div>
+    <div id="tasks"></div>
     <div id="active"><div class="empty">yükleniyor...</div></div>
     <div class="legend">
       <h2>Ajan Rehberi</h2>
@@ -119,8 +131,12 @@ const legendEl = document.getElementById("legend");
 const statusEl = document.getElementById("status");
 const clockEl = document.getElementById("clock");
 const summaryEl = document.getElementById("summary");
+const tasksEl = document.getElementById("tasks");
+const taskHead = document.getElementById("taskHead");
+const taskSummaryEl = document.getElementById("taskSummary");
 const projectSelect = document.getElementById("projectSelect");
-let state = { sessions: [], active: {}, agents: [], boards: [], projects: [] };
+const STUCK_MS = 15 * 60 * 1000;
+let state = { sessions: [], active: {}, agents: [], boards: [], projects: [], tasks: [] };
 let filterMode = "active";
 let projectParam = new URLSearchParams(location.search).get("project") || "";
 
@@ -152,6 +168,15 @@ function duration(s){const start=s.time?.created; if(!start) return ""; const en
 function ago(start){if(!start) return ""; return elapsed(start)+" önce";}
 function fmtTokens(n){n=Number(n)||0; if(n>=1e9) return (n/1e9).toFixed(2)+"B"; if(n>=1e6) return (n/1e6).toFixed(1)+"M"; if(n>=1e3) return Math.round(n/1e3)+"K"; return String(n);}
 function fmtCost(n){n=Number(n)||0; if(n>=0.01) return "$"+n.toFixed(2); if(n>0) return "$"+n.toFixed(4); return "$0";}
+function fmtDuration(ms){if(!ms||ms<0) return ""; const sec=Math.floor(ms/1000); if(sec<60) return sec+"sn"; const min=Math.floor(sec/60); if(min<60) return min+"dk"; const hr=Math.floor(min/60); if(hr<24) return hr+"sa "+(min%60)+"dk"; return Math.floor(hr/24)+"g "+(hr%24)+"sa";}
+function taskStatus(t){
+  if(t.stuck) return {label:"takıldı?",cls:"stuck"};
+  if(t.status==="running") return {label:"çalışıyor",cls:"running"};
+  if(t.status==="error") return /interrupt|abort|cancel/i.test(t.error||"") ? {label:"iptal",cls:"failed"} : {label:"hata",cls:"failed"};
+  if(t.status==="cancelled") return {label:"iptal",cls:"idle"};
+  if(t.status==="completed") return {label:"bitti",cls:"done"};
+  return {label:t.status||"?",cls:"idle"};
+}
 function tokenSummary(s){
   const t=s.tokens||{}; const input=t.input||0; const output=(t.output||0)+(t.reasoning||0); const cache=t.cache?.read||0;
   return {text:fmtTokens(input)+" in · "+fmtTokens(output)+" out", title:"cache read: "+fmtTokens(cache)};
@@ -159,32 +184,39 @@ function tokenSummary(s){
 function statusFor(s){
   const activeIds=new Set(Object.keys(state.active||{}));
   const fresh=s.time?.updated && (Date.now()-s.time.updated)<120000;
-  if(activeIds.has(s.id) && fresh) return {label:"çalışıyor",cls:"running"};
-  if(activeIds.has(s.id)) return {label:"bekliyor",cls:"waiting"};
+  const runningTask=(state.tasks||[]).some(t=>t.sessionID===s.id && t.status==="running");
+  const stuckTask=(state.tasks||[]).some(t=>t.sessionID===s.id && t.stuck);
+  if(stuckTask) return {label:"takıldı?",cls:"stuck"};
+  if(runningTask) return {label:"çalışıyor",cls:"running"};
   if(s.outcome==="failed") return {label:"hata",cls:"failed"};
+  if(s.outcome==="interrupted") return {label:"iptal",cls:"idle"};
   if(s.outcome==="succeeded") return {label:"bitti",cls:"done"};
+  if(activeIds.has(s.id)){
+    if(fresh) return {label:"çalışıyor",cls:"running"};
+    if(s.time?.updated && (Date.now()-s.time.updated)>STUCK_MS) return {label:"takıldı?",cls:"stuck"};
+    return {label:"bekliyor",cls:"waiting"};
+  }
+  if(fresh) return {label:"yeni",cls:"running"};
   return {label:"geçmiş",cls:"idle"};
 }
 function visibleSessions(){
   const all=(state.sessions||[]).filter(s=>s.agent && s.time?.created);
   if(filterMode==="all") return all;
   const activeIds=new Set(Object.keys(state.active||{}));
+  const runningTaskSessions=new Set((state.tasks||[]).filter(t=>t.status==="running").map(t=>t.sessionID));
   const windowMs=filterMode==="hour" ? 3600000 : 120000;
-  return all.filter(s=>activeIds.has(s.id) || (s.time?.updated && (Date.now()-s.time.updated)<windowMs));
+  return all.filter(s=>activeIds.has(s.id) || runningTaskSessions.has(s.id) || (s.time?.updated && (Date.now()-s.time.updated)<windowMs));
 }
 function groupSessions(list){
   const groups=new Map();
   for(const s of list){
-    const dir=s.location?.directory||"bilinmeyen";
+    const dir=s.projectDir||s.location?.directory||"bilinmeyen";
     if(!groups.has(dir)) groups.set(dir,[]);
     groups.get(dir).push(s);
   }
+  const rank=s=>statusFor(s).cls==="stuck"?3:statusFor(s).cls==="running"?2:statusFor(s).cls==="waiting"?1:0;
   return [...groups.entries()].map(([dir,sessions])=>{
-    sessions.sort((a,b)=>{
-      const aa=statusFor(a).cls==="running"?2:statusFor(a).cls==="waiting"?1:0;
-      const bb=statusFor(b).cls==="running"?2:statusFor(b).cls==="waiting"?1:0;
-      return bb-aa || (b.time?.updated||0)-(a.time?.updated||0);
-    });
+    sessions.sort((a,b)=>rank(b)-rank(a)||(b.time?.updated||0)-(a.time?.updated||0));
     return {dir,sessions,updated:Math.max(...sessions.map(s=>s.time?.updated||0))};
   }).sort((a,b)=>b.updated-a.updated);
 }
@@ -194,12 +226,12 @@ function parentTitle(s){
   return parent ? parent.title||parent.id : s.parentID;
 }
 function renderProjectSelect(){
-  const projects=(state.projects||[]).filter(p=>p.boardCount>0||p.activeCount>0||p.dir===projectParam);
-  const signature=projects.map(p=>p.dir).join("|");
+  const projects=(state.projects||[]).filter(p=>p.boardCount>0||p.activeCount>0||p.taskCount>0||p.stuckCount>0||p.dir===projectParam);
+  const signature=projects.map(p=>p.dir+":"+(p.stuckCount||0)).join("|");
   if(projectSelect.dataset.signature!==signature){
     projectSelect.dataset.signature=signature;
     projectSelect.innerHTML=projects.map(p=>{
-      const label=p.name+(p.kind==="worktree"?" · worktree":"");
+      const label=p.name+(p.kind==="worktree"?" · worktree":"")+(p.stuckCount?" · "+p.stuckCount+" takıldı?":"");
       return '<option value="'+esc(p.dir)+'">'+esc(label)+'</option>';
     }).join("");
   }
@@ -212,6 +244,26 @@ function renderProjectSelect(){
   if(projectParam) projectSelect.value=projectParam;
   const selected=projects.find(p=>p.dir===projectParam);
   document.title="Ajan Panosu"+(selected?" · "+selected.name:"");
+}
+function renderTasks(){
+  const tasks=(state.tasks||[]).slice().sort((a,b)=>{
+    const rank=t=>t.stuck?0:t.status==="running"?1:t.status==="error"?2:3;
+    return rank(a)-rank(b)||(b.startedAt||0)-(a.startedAt||0);
+  });
+  if(!tasks.length){taskHead.style.display="none";tasksEl.innerHTML="";return;}
+  taskHead.style.display="flex";
+  const stuck=tasks.filter(t=>t.stuck).length;
+  taskSummaryEl.textContent=tasks.length+" görev"+(stuck?" · "+stuck+" takıldı?":"");
+  tasksEl.innerHTML=tasks.slice(0,12).map(t=>{
+    const a=agentInfo(t.agent); const name=a.name||t.agent||"?";
+    const st=taskStatus(t); const parent=(state.sessions||[]).find(s=>s.id===t.sessionID);
+    return '<article class="task-card '+st.cls+'">'+
+      '<img class="avatar" src="'+esc(avatarFor(t.agent))+'" alt="'+esc(name)+'" />'+
+      '<div><div class="row"><span class="agent-name">'+esc(name)+'</span><span class="badge '+st.cls+'">'+esc(st.label)+'</span><span class="pill">#'+esc(t.agent)+'</span><span class="spacer"></span><span class="metric">'+esc(fmtDuration(t.elapsedMs))+'</span></div>'+
+      '<div class="task-title" title="'+esc(t.description||t.tool)+'">'+esc(t.description||t.tool)+'</div>'+
+      '<div class="task-meta"><span>üst: '+esc(parent?.title||t.sessionTitle||t.sessionID)+'</span><span>oturum #'+esc(shortId(t.sessionID))+'</span>'+(t.stuck?'<span>15 dk+ güncelleme yok</span>':'')+'</div>'+
+      '</div></article>';
+  }).join("");
 }
 function renderActive(){
   const list=visibleSessions();
@@ -288,7 +340,8 @@ function renderSummary(){
   const list=visibleSessions();
   let input=0, output=0, cost=0;
   for(const s of list){const t=s.tokens||{}; input+=t.input||0; output+=(t.output||0)+(t.reasoning||0); cost+=Number(s.cost)||0;}
-  summaryEl.textContent="Görünen "+list.length+" oturum · toplam "+fmtTokens(input)+" in · "+fmtTokens(output)+" out · "+fmtCost(cost);
+  const stuck=(state.tasks||[]).filter(t=>t.stuck).length;
+  summaryEl.textContent="Görünen "+list.length+" oturum · toplam "+fmtTokens(input)+" in · "+fmtTokens(output)+" out · "+fmtCost(cost)+(stuck?" · "+stuck+" takılı görev":"");
 }
 async function refresh(){
   const activeScroll=activeEl.parentElement?.scrollTop||0;
@@ -301,9 +354,12 @@ async function refresh(){
     const list=visibleSessions();
     const running=list.filter(s=>statusFor(s).cls==="running").length;
     const waiting=list.filter(s=>statusFor(s).cls==="waiting").length;
-    statusEl.textContent=running+" çalışıyor"+(waiting?" · "+waiting+" bekliyor":"")+" · "+list.length+" oturum";
+    const stuckSessions=list.filter(s=>statusFor(s).cls==="stuck").length;
+    const stuckTasks=(state.tasks||[]).filter(t=>t.stuck).length;
+    const stuck=Math.max(stuckSessions,stuckTasks);
+    statusEl.textContent=running+" çalışıyor"+(waiting?" · "+waiting+" bekliyor":"")+(stuck?" · "+stuck+" takıldı?":"")+" · "+list.length+" oturum";
     clockEl.textContent=new Date().toLocaleTimeString("tr-TR");
-    renderActive(); renderBoards(); renderLegend(); renderSummary();
+    renderTasks(); renderActive(); renderBoards(); renderLegend(); renderSummary();
     if(activeEl.parentElement) activeEl.parentElement.scrollTop=activeScroll;
     if(boardsEl.parentElement) boardsEl.parentElement.scrollTop=boardScroll;
   } catch(e) {

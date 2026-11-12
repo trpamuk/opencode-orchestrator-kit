@@ -1,6 +1,6 @@
 # OpenCode Orchestrator Kit
 
-**Version:** 0.1.2  
+**Version:** 0.1.3  
 **Platform:** Windows 10/11  
 **Status:** early public preview
 
@@ -36,7 +36,7 @@ It does **not** replace OpenCode or OMO-slim. It configures them and adds the mi
 | Component | Purpose |
 |---|---|
 | `opencode.json` bootstrap | Enables OMO-slim 3.0.7 and selects the orchestrator |
-| OMO-slim config | Presets, fallback models, marketplace agents, Companion disabled |
+| OMO-slim config | Presets, fallback models, marketplace agents, Companion disabled, 30-minute background-task timeout |
 | Global `AGENTS.md` | Board, worktree, review and merge policy |
 | `orchestrator_append.md` | Mandatory automatic orchestration workflow |
 | `plugins/board-guard.js` | OpenCode V2 plugin that isolates board writes |
@@ -143,8 +143,12 @@ It shows:
 - official agent names and roles;
 - session title, parent/child relationship, model and project;
 - elapsed time, last activity, input/output tokens and cost;
+- **Alt Görevler**: running `subagent`/`task` tool calls inside a session, even when they never create a separate child session;
+- a red **takıldı?** state when a session or subagent task has not updated for 15 minutes;
 - active task boards, parsed from the project's `.opencode/plans/` area;
 - a project selector so two projects never share one board view.
+
+The dashboard keeps child and worktree sessions attached to their parent project, so a worktree subagent cannot disappear from the main project view.
 
 The server binds only to `127.0.0.1:43124`. It reads the local OpenCode service password from `service.json` on the server side and never sends it to the browser.
 
@@ -206,6 +210,35 @@ Sign in to OpenCode Go, or edit the model IDs in:
 
 Restart OpenCode and check that `agent-board\guard.log` contains a `LOAD` or `SETUP` line.
 
+### A subagent is stuck in the background
+
+OpenCode 2.2.x can leave a native `subagent(..., background: true)` call running indefinitely. The call may never create a visible child session, so the normal session list cannot show it. On this host, OMO-slim also reports:
+
+```text
+runtime status reconciliation disabled on this host (client.session.status unavailable)
+```
+
+The dashboard now surfaces these calls directly:
+
+- open the project that owns the parent session;
+- check the **Alt Görevler** section;
+- a task that has not updated for 15 minutes is marked **takıldı?**;
+- stop the parent session, then fully restart OpenCode Desktop if the task does not clear.
+
+The kit also sets `backgroundJobs.wallClockTimeoutMs` to `1800000` (30 minutes) in the OMO-slim config. This aborts a background child session that was launched successfully. It cannot stop a native tool call that hangs before creating a child session; the dashboard warning is the early-warning path for that case.
+
+If the problem repeats and you prefer reliability over parallel background work, you can force same-provider subagents to run in the foreground:
+
+```json
+"backgroundJobs": {
+  "sameProviderPolicy": {
+    "opencode-go": "foreground"
+  }
+}
+```
+
+This avoids the native background path entirely, at the cost of serializing those subagents.
+
 ### Full diagnostic
 
 ```text
@@ -244,7 +277,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Türkçe
 
-**Sürüm:** 0.1.2  
+**Sürüm:** 0.1.3  
 **Platform:** Windows 10/11
 
 Bu kit, OpenCode Desktop + OMO-slim + Ajan Panosu + Board Guard kurulumunu tek tıkla yapar.
@@ -270,6 +303,7 @@ OMO-slim'i ayrıca kurmana gerek yok; kit gerekli config'i yazar ve OpenCode `oh
 - Masaüstü kısayolu: `Ajan Panosu`
 - OpenCode içinde: Review pane → yeni browser sekmesi → aynı URL
 - Sunucu Startup'ta otomatik başlar.
+- **Alt Görevler** bölümü, oturum içinde çalışan `subagent`/`task` çağrılarını gösterir; 15 dakikadır güncellenmeyenler `takıldı?` olur.
 
 ### Board Guard
 
@@ -280,6 +314,8 @@ Sadece projenin `.opencode/plans/current.md` ve `.opencode/plans/boards/*.md` al
 - Panel açılmıyorsa: `doctor.cmd`
 - OpenCode'da Browser sekmesi yoksa: Desktop'ı tamamen kapat/aç
 - Model bulunamıyorsa: OpenCode Go girişini kontrol et
+- Alt görev 15 dk+ güncellenmezse panelde `takıldı?` görünür; üst oturumu durdurup OpenCode'u yeniden başlat.
+- Kalıcı sorunda `backgroundJobs.sameProviderPolicy` ile aynı sağlayıcıdaki alt görevler foreground çalıştırılabilir; bu paralelliği azaltır.
 - Log: `%USERPROFILE%\.config\opencode\agent-board\guard.log`
 
 ### Güvenlik
