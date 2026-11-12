@@ -17,6 +17,18 @@ const TASK_MESSAGE_LIMIT = 40;
 const TASK_FETCH_TIMEOUT_MS = 6000;
 const TASK_MAX_SESSIONS = 12;
 const TASK_MAX_ITEMS = 40;
+const OMO_CONFIG =
+  process.env.AGENT_BOARD_OMO_CONFIG ||
+  path.join(CONFIG_DIR, "oh-my-opencode-slim.json");
+const MODEL_CACHE_MS = 10000;
+const PROFILE_AGENTS = [
+  "orchestrator",
+  "oracle",
+  "explorer",
+  "designer",
+  "fixer",
+  "observer",
+];
 
 const CONTENT_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -119,6 +131,15 @@ async function upstreamPost(pathname, timeoutMs = 15000) {
     throw error;
   }
   return text ? JSON.parse(text) : {};
+}
+
+function isAllowedOrigin(req) {
+  const origin = req.headers.origin;
+  if (!origin) return true;
+  return new Set([
+    `http://127.0.0.1:${PORT}`,
+    `http://localhost:${PORT}`,
+  ]).has(origin);
 }
 
 function readJson(req, limit = 64 * 1024) {
@@ -272,6 +293,320 @@ async function collectTasks(sessions, activeMap) {
     })
     .sort((a, b) => rank(a) - rank(b) || (b.startedAt || 0) - (a.startedAt || 0))
     .slice(0, TASK_MAX_ITEMS);
+}
+
+function redact(text, max = 240) {
+  let value = String(text ?? "");
+  value = value
+    .replace(/\b(sk-[A-Za-z0-9_-]{8,})\b/g, "sk-***")
+    .replace(/\b(ghp_[A-Za-z0-9]{8,})\b/g, "ghp_***")
+    .replace(/\b(github_pat_[A-Za-z0-9_]{8,})\b/g, "github_pat_***")
+    .replace(/(Bearer\s+)[A-Za-z0-9._-]+/gi, "$1***")
+    .replace(
+      /((?:api[_-]?key|token|secret|password|passwd)\s*[:=]\s*["']?)[^"'\s,;]+/gi,
+      "$1***",
+    )
+    .replace(/([?&](?:key|token|secret|password)=)[^&\s]+/gi, "$1***");
+  if (value.length > max) value = value.slice(0, max) + "…";
+  return value;
+}
+
+function sanitizeModel(model) {
+  const providerID = model.providerID || "";
+  const modelID = model.modelID || model.id || "";
+  const input = model.capabilities?.input || [];
+  return {
+    id: providerID + "/" + modelID,
+    providerID,
+    modelID,
+    name: model.name || modelID,
+    tools: model.capabilities?.tools === true,
+    vision: input.includes("image") || input.includes("pdf"),
+    input,
+    variants: (model.variants || []).map((variant) => variant.id).filter(Boolean),
+    context: model.limit?.context || null,
+    cost: model.cost?.[0]
+      ? {
+          input: model.cost[0].input,
+          output: model.cost[0].output,
+        }
+      : null,
+  };
+}
+
+let modelCache = { at: 0, models: [], defaultModel: null };
+
+async function fetchModelCatalog() {
+  if (Date.now() - modelCache.at < MODEL_CACHE_MS) return modelCache;
+  const [modelsResponse, defaultResponse] = await Promise.all([
+    upstream("/api/model", 10000),
+    upstream("/api/model/default", 8000).catch(() => null),
+  ]);
+  const raw = Array.isArray(modelsResponse)
+    ? modelsResponse
+    : modelsResponse.data || [];
+  const models = raw
+    .filter((model) => model && model.enabled !== false)
+    .map(sanitizeModel)
+    .filter((model) => model.providerID && model.modelID);
+  const defaultRaw = defaultResponse
+    ? defaultResponse.data || defaultResponse
+    : null;
+  const defaultModel =
+    defaultRaw?.providerID && defaultRaw?.modelID
+      ? sanitizeModel(defaultRaw)
+      : null;
+  modelCache = { at: Date.now(), models, defaultModel };
+  return modelCache;
+}
+
+let defaultModelCache = { at: 0, value: null };
+
+async function getDefaultModel() {
+  if (process.env.AGENT_BOARD_FAKE_NO_MODEL === "1") return null;
+  if (Date.now() - defaultModelCache.at < MODEL_CACHE_MS) {
+    return defaultModelCache.value;
+  }
+  try {
+    const response = await upstream("/api/model/default", 8000);
+    const raw = response.data || response;
+    const value =
+      raw?.providerID && raw?.modelID
+        ? `${raw.providerID}/${raw.modelID}`
+        : null;
+    defaultModelCache = { at: Date.now(), value };
+    return value;
+  } catch {
+    defaultModelCache = { at: Date.now(), value: null };
+    return null;
+  }
+}
+
+function readOmoConfig() {
+  const text = fs.readFileSync(OMO_CONFIG, "utf8").replace(/^\uFEFF/, "");
+  return JSON.parse(text);
+}
+
+function writeOmoConfig(config) {
+  const stamp = new Date()
+    .toISOString()
+    .replace(/[:.]/g, "-");
+  const backupRoot = path.join(
+    path.dirname(OMO_CONFIG),
+    "backups",
+    `${stamp}-profile`,
+  );
+  fs.mkdirSync(backupRoot, { recursive: true });
+  if (fs.existsSync(OMO_CONFIG)) {
+    fs.copyFileSync(
+      OMO_CONFIG,
+      path.join(backupRoot, "oh-my-opencode-slim.json"),
+    );
+  }
+  const temp = `${OMO_CONFIG}.tmp-${process.pid}-${Date.now()}`;
+  fs.writeFileSync(temp, JSON.stringify(config, null, 2) + "\n", "utf8");
+  fs.copyFileSync(temp, OMO_CONFIG);
+  fs.rmSync(temp, { force: true });
+}
+
+function activePreset(config) {
+  const name = config.preset;
+  const preset = config.presets?.[name];
+  if (!preset || typeof preset !== "object" || Array.isArray(preset)) {
+    const error = new Error(`active preset not found: ${name || "?"}`);
+    error.status = 409;
+    throw error;
+  }
+  return { name, preset };
+}
+
+function profileForEntry(entry) {
+  if (!entry || typeof entry !== "object") {
+    return { mode: "session", model: null, variant: null };
+  }
+  if (entry.inheritModelFrom === "session") {
+    return { mode: "session", model: null, variant: null };
+  }
+  const first = Array.isArray(entry.model) ? entry.model[0] : entry.model;
+  if (typeof first === "string") {
+    return { mode: "model", model: first, variant: entry.variant || null };
+  }
+  if (first && typeof first === "object" && first.id) {
+    return {
+      mode: "model",
+      model: first.id,
+      variant: first.variant || entry.variant || null,
+    };
+  }
+  return { mode: "session", model: null, variant: null };
+}
+
+function profilesFromConfig(config) {
+  const { name, preset } = activePreset(config);
+  const profiles = {};
+  for (const agent of PROFILE_AGENTS) {
+    profiles[agent] = profileForEntry(preset[agent]);
+  }
+  return { preset: name, profiles };
+}
+
+function getProfiles() {
+  return profilesFromConfig(readOmoConfig());
+}
+
+async function setProfile(agent, mode, modelID, variant) {
+  if (!PROFILE_AGENTS.includes(agent)) {
+    const error = new Error(`unknown agent: ${agent}`);
+    error.status = 400;
+    throw error;
+  }
+  if (mode !== "session" && mode !== "model") {
+    const error = new Error("mode must be session or model");
+    error.status = 400;
+    throw error;
+  }
+  const config = readOmoConfig();
+  const { preset } = activePreset(config);
+  const entry =
+    preset[agent] && typeof preset[agent] === "object"
+      ? { ...preset[agent] }
+      : {};
+  if (mode === "session") {
+    delete entry.model;
+    delete entry.variant;
+    entry.inheritModelFrom = "session";
+  } else {
+    const catalog = await fetchModelCatalog();
+    const model = catalog.models.find((item) => item.id === modelID);
+    if (!model) {
+      const error = new Error(`unknown model: ${modelID}`);
+      error.status = 400;
+      throw error;
+    }
+    delete entry.inheritModelFrom;
+    const chosen = { id: model.id };
+    if (variant && model.variants.includes(variant)) {
+      chosen.variant = variant;
+    }
+    entry.model = [chosen];
+    delete entry.variant;
+  }
+  preset[agent] = entry;
+  if (process.env.AGENT_BOARD_PROFILE_DRY_RUN !== "1") {
+    writeOmoConfig(config);
+  }
+  return {
+    dryRun: process.env.AGENT_BOARD_PROFILE_DRY_RUN === "1",
+    ...profilesFromConfig(config),
+  };
+}
+
+async function getSetup() {
+  const defaultModel = await getDefaultModel();
+  let preset = null;
+  try {
+    preset = readOmoConfig().preset || null;
+  } catch {
+    preset = null;
+  }
+  return { hasModel: Boolean(defaultModel), defaultModel, preset };
+}
+
+function toolDescription(name, input) {
+  if (name === "subagent" || name === "task") {
+    return [input.agent, input.description].filter(Boolean).join(" — ") || name;
+  }
+  if (name === "shell") return input.command || name;
+  if (name === "read" || name === "write" || name === "edit") {
+    return input.filePath || input.path || name;
+  }
+  if (name === "grep" || name === "glob") return input.pattern || name;
+  if (name === "webfetch") return input.url || name;
+  return (
+    input.description ||
+    input.command ||
+    input.path ||
+    input.filePath ||
+    input.pattern ||
+    input.url ||
+    name
+  );
+}
+
+async function getSessionDetail(sessionID) {
+  const sessionResponse = await upstream(
+    `/api/session/${encodeURIComponent(sessionID)}`,
+  );
+  const session = Array.isArray(sessionResponse)
+    ? sessionResponse[0]
+    : sessionResponse.data || sessionResponse;
+  if (!session || !session.id) {
+    const error = new Error("session not found");
+    error.status = 404;
+    throw error;
+  }
+  const messagesResponse = await upstream(
+    `/api/session/${encodeURIComponent(sessionID)}/message?limit=25`,
+    8000,
+  );
+  const messages = Array.isArray(messagesResponse)
+    ? messagesResponse
+    : messagesResponse.data || [];
+  const tools = [];
+  const errors = [];
+  for (const message of messages) {
+    for (const part of message.content || message.parts || []) {
+      if (part.type !== "tool") continue;
+      const state = part.state || {};
+      const input = state.input || {};
+      const startedAt =
+        state.time?.created || state.time?.ran || message.time?.created || null;
+      const completedAt =
+        state.time?.completed || message.time?.completed || null;
+      const error = state.error?.message || null;
+      tools.push({
+        id: part.id || `${startedAt || 0}:${part.name}`,
+        name: part.name || "tool",
+        status: state.status || "unknown",
+        description: redact(toolDescription(part.name, input)),
+        startedAt,
+        completedAt,
+        durationMs: startedAt
+          ? Math.max(0, (completedAt || Date.now()) - startedAt)
+          : null,
+        error: error ? redact(error) : null,
+        agent: input.agent || null,
+      });
+      if (error) {
+        errors.push({
+          tool: part.name || "tool",
+          message: redact(error),
+          at: completedAt || startedAt,
+        });
+      }
+    }
+  }
+  tools.sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0));
+  return {
+    session: {
+      id: session.id,
+      title: session.title || session.id,
+      agent: session.agent || null,
+      model: session.model
+        ? `${session.model.providerID || ""}/${session.model.id || ""}`
+        : null,
+      outcome: session.outcome || null,
+      parentID: session.parentID || null,
+      directory: session.location?.directory || null,
+      created: session.time?.created || null,
+      updated: session.time?.updated || null,
+      tokens: session.tokens || null,
+      cost: session.cost || 0,
+      error: session.error?.message ? redact(session.error.message) : null,
+    },
+    tools: tools.slice(0, 30),
+    errors: errors.slice(0, 10),
+  };
 }
 
 function addBoardPath(paths, seen, dir) {
@@ -475,12 +810,7 @@ const server = http.createServer(async (req, res) => {
         res.end("method not allowed");
         return;
       }
-      const origin = req.headers.origin;
-      const allowedOrigins = new Set([
-        `http://127.0.0.1:${PORT}`,
-        `http://localhost:${PORT}`,
-      ]);
-      if (origin && !allowedOrigins.has(origin)) {
+      if (!isAllowedOrigin(req)) {
         res.writeHead(403, { "content-type": "text/plain; charset=utf-8" });
         res.end("forbidden origin");
         return;
@@ -546,6 +876,78 @@ const server = http.createServer(async (req, res) => {
       );
       return;
     }
+    if (url.pathname === "/api/setup") {
+      const setup = await getSetup();
+      res.writeHead(200, {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+      });
+      res.end(JSON.stringify(setup));
+      return;
+    }
+    if (url.pathname === "/api/models") {
+      const catalog = await fetchModelCatalog();
+      const profiles = getProfiles();
+      res.writeHead(200, {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+      });
+      res.end(
+        JSON.stringify({
+          models: catalog.models,
+          defaultModel: catalog.defaultModel,
+          ...profiles,
+        }),
+      );
+      return;
+    }
+    if (url.pathname === "/api/profile") {
+      if (req.method !== "POST") {
+        res.writeHead(405, { "content-type": "text/plain; charset=utf-8" });
+        res.end("method not allowed");
+        return;
+      }
+      if (!isAllowedOrigin(req)) {
+        res.writeHead(403, { "content-type": "text/plain; charset=utf-8" });
+        res.end("forbidden origin");
+        return;
+      }
+      let body;
+      try {
+        body = await readJson(req);
+      } catch (error) {
+        res.writeHead(400, { "content-type": "text/plain; charset=utf-8" });
+        res.end(error.message);
+        return;
+      }
+      const result = await setProfile(
+        String(body.agent || ""),
+        String(body.mode || ""),
+        String(body.model || ""),
+        body.variant ? String(body.variant) : null,
+      );
+      res.writeHead(200, {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+      });
+      res.end(JSON.stringify(result));
+      return;
+    }
+    if (url.pathname === "/api/session-detail") {
+      const sessionID = url.searchParams.get("session") || "";
+      if (!/^ses_[A-Za-z0-9]+$/.test(sessionID)) {
+        res.writeHead(400, { "content-type": "text/plain; charset=utf-8" });
+        res.end("invalid session id");
+        return;
+      }
+      const detail = await getSessionDetail(sessionID);
+      res.writeHead(200, {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+      });
+      res.end(JSON.stringify(detail));
+      return;
+    }
     if (url.pathname === "/api/state") {
       const [sessions, active, agents] = await Promise.all([
         upstream("/api/session?limit=100"),
@@ -563,6 +965,11 @@ const server = http.createServer(async (req, res) => {
         description: agent.description,
         mode: agent.mode,
         model: agent.model,
+      }));
+      const setup = await getSetup().catch(() => ({
+        hasModel: false,
+        defaultModel: null,
+        preset: null,
       }));
       const allBoards = readBoards(sessionList, activeMap);
       const projects = listProjects(sessionList, allBoards);
@@ -633,6 +1040,7 @@ const server = http.createServer(async (req, res) => {
           projects,
           tasks: selectedTasks,
           stuckCount: selectedTasks.filter((task) => task.stuck).length,
+          setup,
           generatedAt: Date.now(),
         }),
       );

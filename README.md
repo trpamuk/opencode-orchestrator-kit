@@ -1,6 +1,6 @@
 # OpenCode Orchestrator Kit
 
-**Version:** 0.2.0  
+**Version:** 0.3.0  
 **Platform:** Windows 10/11  
 **Status:** early public preview
 
@@ -131,9 +131,10 @@ To make an agent follow the session model explicitly, use:
 1. Download the latest release ZIP.
 2. Extract it to a normal folder.
 3. Double-click **`install.cmd`**.
-4. Wait for the installer to finish.
-5. Fully quit and reopen OpenCode Desktop.
-6. Open **http://127.0.0.1:43124/**.
+4. When prompted, choose a model or keep the current one. The installer lists models from the running OpenCode service.
+5. Wait for the installer to finish.
+6. Fully quit and reopen OpenCode Desktop.
+7. Open **http://127.0.0.1:43124/**.
 
 For the in-app browser:
 
@@ -155,6 +156,8 @@ If the Browser entry is missing after an OpenCode update, fully quit and reopen 
 ```
 
 - Merges the kit plugin and default agent into an existing `opencode.json`. It does **not** change the model you selected.
+- Lists available models from the running OpenCode service and lets you choose one. Use `-NoModelPrompt` to skip the prompt or `-Model "provider/model"` to preselect one.
+- Warns when no model is selected, so the first run can be completed from OpenCode or the dashboard.
 - Writes the OMO-slim configuration, global `AGENTS.md` and orchestrator policy.
 - Installs `plugins\board-guard.js`.
 - Copies the dashboard to `%USERPROFILE%\.config\opencode\agent-board`.
@@ -193,12 +196,35 @@ It shows:
 - **Alt Görevler**: running `subagent`/`task` tool calls inside a session, even when they never create a separate child session;
 - a red **takıldı?** state when a session or subagent task has not updated for 15 minutes;
 - a **Durdur** button on stuck cards; it asks for confirmation and interrupts only that session's current run;
+- a **Detay** button on session and task cards; it shows recent tool calls, errors, model, tokens and cost;
+- a **Modeller** button for per-agent model profiles (session model or a specific model);
+- a first-run banner when OpenCode has no default model selected;
 - active task boards, parsed from the project's `.opencode/plans/` area;
 - a project selector so two projects never share one board view.
 
 The dashboard keeps child and worktree sessions attached to their parent project, so a worktree subagent cannot disappear from the main project view.
 
 The server binds only to `127.0.0.1:43124`. It reads the local OpenCode service password from `service.json` on the server side and never sends it to the browser.
+
+### Model profiles in the dashboard
+
+Click **Modeller** in the header to edit the active OMO preset per agent:
+
+- choose **Oturum modeli** to inherit the model selected in OpenCode;
+- choose a specific model for orchestrator, oracle, explorer, designer, fixer or observer;
+- optionally choose a reasoning variant when the model exposes variants.
+
+Changes are written to `%USERPROFILE%\.config\opencode\oh-my-opencode-slim.json`, with a timestamped backup under the same folder. The model list comes from OpenCode and is sanitized: provider API keys and settings are never sent to the browser.
+
+### Session detail
+
+Click **Detay** on any session or subagent card to see:
+
+- agent, model, outcome, tokens, cost and last activity;
+- the most recent tool calls with status, duration and a short description;
+- tool errors and the session error, with common secret patterns redacted.
+
+The detail view is read-only; the **Durdur** button is available there when the session is stuck.
 
 ---
 
@@ -250,6 +276,8 @@ Fully quit and reopen OpenCode Desktop. Some 2.2.x Desktop builds temporarily lo
 ### Model not found / no model selected
 
 Select a provider and a model in OpenCode first. The kit does not pin a model in the default `session` preset.
+
+The dashboard shows a **Model seçili değil** banner when OpenCode has no default model. Click **Modeller** to set per-agent profiles, or select a model in OpenCode. `doctor.cmd` also checks the default model and reports `Varsayilan model` as failed until one is selected.
 
 To use the tested OpenCode Go setup instead, set this in `%USERPROFILE%\.config\opencode\oh-my-opencode-slim.json`:
 
@@ -333,7 +361,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Türkçe
 
-**Sürüm:** 0.2.0  
+**Sürüm:** 0.3.0  
 **Platform:** Windows 10/11
 
 Bu kit, OpenCode Desktop + OMO-slim + Ajan Panosu + Board Guard kurulumunu tek tıkla yapar.
@@ -365,6 +393,10 @@ Kit varsayılan olarak **hiçbir model ID'si yazmaz**. `session` preset'i, OpenC
 
 Ayar dosyası: `%USERPROFILE%\.config\opencode\oh-my-opencode-slim.json`
 
+Installer çalışırken OpenCode servisindeki modelleri listeler; mevcut modeli koru, listeden seç veya model alanını boş bırak seçeneklerini sunar. `-NoModelPrompt` ile soru atlanır, `-Model "provider/model"` ile model önceden seçilir.
+
+Panelde **Modeller** butonu agent bazlı override yazar; değişiklikten önce yedek alınır ve provider API key'leri tarayıcıya gönderilmez.
+
 Tek bir ajana özel model vermek için `model`, oturum modelini takip etmesi için `inheritModelFrom: "session"` kullanılabilir. Observer görsel model gerektirir; oturum modelin multimodal değilse observer'a ayrı model ver veya `"disabled_agents": ["observer"]` ile kapat.
 
 ### Panel
@@ -375,6 +407,9 @@ Tek bir ajana özel model vermek için `model`, oturum modelini takip etmesi iç
 - Sunucu Startup'ta otomatik başlar.
 - **Alt Görevler** bölümü, oturum içinde çalışan `subagent`/`task` çağrılarını gösterir; 15 dakikadır güncellenmeyenler `takıldı?` olur.
 - Takılı kartlarda **Durdur** butonu vardır; onay ister ve sadece o oturumun mevcut çalışmasını keser. Dosya/board değiştirmez; tekrar çalıştırmadan önce `git status` kontrol edilmeli.
+- **Modeller** butonu ile orchestrator, oracle, explorer, designer, fixer ve observer için oturum modeli veya belirli bir model seçilebilir.
+- **Detay** butonu son tool çağrılarını, hataları, modeli, token ve maliyeti gösterir.
+- OpenCode'da varsayılan model yoksa panelde uyarı bandı çıkar.
 
 ### Board Guard
 
@@ -384,7 +419,7 @@ Sadece projenin `.opencode/plans/current.md` ve `.opencode/plans/boards/*.md` al
 
 - Panel açılmıyorsa: `doctor.cmd`
 - OpenCode'da Browser sekmesi yoksa: Desktop'ı tamamen kapat/aç
-- Model bulunamıyorsa: OpenCode'da önce bir provider/model seç; kit varsayılan olarak model pinlemez. Test edilmiş OpenCode Go setup'ı için `preset` değerini `opencode-go` yap.
+- Model bulunamıyorsa: OpenCode'da önce bir provider/model seç; kit varsayılan olarak model pinlemez. Panelde **Modeller** butonunu kullan veya `doctor.cmd` çıktısındaki `Varsayilan model` satırına bak. Test edilmiş OpenCode Go setup'ı için `preset` değerini `opencode-go` yap.
 - Alt görev 15 dk+ güncellenmezse panelde `takıldı?` görünür; üst oturumu durdurup OpenCode'u yeniden başlat.
 - Kalıcı sorunda `backgroundJobs.sameProviderPolicy` ile aynı sağlayıcıdaki alt görevler foreground çalıştırılabilir; bu paralelliği azaltır.
 - Log: `%USERPROFILE%\.config\opencode\agent-board\guard.log`

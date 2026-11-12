@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0 - 2026-11-12
+
+- Added model selection to the installer: lists models from the running OpenCode service, preserves the current model, supports `-NoModelPrompt` and `-Model "provider/model"`
+- Added a first-run warning when no default model is selected
+- Added a dashboard **Modeller** dialog for per-agent model profiles with a timestamped config backup
+- The model list is sanitized; provider API keys and settings never reach the browser
+- Added a dashboard **Detay** dialog with recent tool calls, errors, model, tokens and cost
+- Added secret redaction to the session detail output
+- `doctor.cmd` now checks the default model and reports `Varsayilan model`
+
 ## 0.2.0 - 2026-11-12
 
 - Removed the OpenCode Go requirement

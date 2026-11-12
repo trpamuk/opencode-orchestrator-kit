@@ -1,7 +1,9 @@
 param(
   [string]$ConfigDir = (Join-Path $env:USERPROFILE ".config\opencode"),
   [switch]$NoShortcuts,
-  [switch]$NoStart
+  [switch]$NoStart,
+  [switch]$NoModelPrompt,
+  [string]$Model = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -27,6 +29,151 @@ function Backup-File([string]$path) {
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $target) | Out-Null
     Copy-Item $path $target -Force
     Write-Host "    yedek: $relative" -ForegroundColor DarkGray
+  }
+}
+
+function Write-Utf8NoBom([string]$path, [string]$text) {
+  $utf8 = New-Object System.Text.UTF8Encoding $false
+  [IO.File]::WriteAllText($path, $text, $utf8)
+}
+
+function Get-OpenCodeService {
+  $servicePath = Join-Path $configDir "service.json"
+  if (-not (Test-Path $servicePath)) { return $null }
+  try {
+    $service = Get-Content $servicePath -Raw | ConvertFrom-Json
+    if (-not $service.password) { return $null }
+    $url = $null
+    try {
+      $out = & opencode service status 2>$null
+      $match = [regex]::Match(($out -join " "), 'https?://[^\s]+')
+      if ($match.Success) { $url = $match.Value }
+    } catch {
+      # OpenCode CLI yoksa varsayilan adres denenir.
+    }
+    if (-not $url) { $url = "http://127.0.0.1:45278" }
+    $auth = "Basic " + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("opencode:" + $service.password))
+    return [pscustomobject]@{ Url = $url; Auth = $auth }
+  } catch {
+    return $null
+  }
+}
+
+function Get-ModelCatalog($service) {
+  if (-not $service) { return $null }
+  try {
+    $headers = @{ Authorization = $service.Auth }
+    $modelsResponse = Invoke-RestMethod -Uri ($service.Url + "/api/model") -Headers $headers -TimeoutSec 10
+    $defaultResponse = $null
+    try {
+      $defaultResponse = Invoke-RestMethod -Uri ($service.Url + "/api/model/default") -Headers $headers -TimeoutSec 10
+    } catch {
+      $defaultResponse = $null
+    }
+    $raw = if ($modelsResponse.data) { @($modelsResponse.data) } else { @($modelsResponse) }
+    $models = @()
+    foreach ($model in $raw) {
+      if ($model.enabled -eq $false) { continue }
+      $providerID = [string]$model.providerID
+      $modelID = [string]$model.modelID
+      if (-not $providerID -or -not $modelID) { continue }
+      $variants = @()
+      if ($model.variants) {
+        $variants = @($model.variants | ForEach-Object { [string]$_.id } | Where-Object { $_ })
+      }
+      $inputs = @()
+      if ($model.capabilities.input) { $inputs = @($model.capabilities.input) }
+      $models += [pscustomobject]@{
+        Id = "$providerID/$modelID"
+        Provider = $providerID
+        Model = $modelID
+        Name = [string]$model.name
+        Variants = $variants
+        Tools = ($model.capabilities.tools -eq $true)
+        Vision = ($inputs -contains "image") -or ($inputs -contains "pdf")
+        Context = $model.limit.context
+      }
+    }
+    $defaultModel = $null
+    if ($defaultResponse) {
+      $defaultData = if ($defaultResponse.data) { $defaultResponse.data } else { $defaultResponse }
+      if ($defaultData.providerID -and $defaultData.modelID) {
+        $defaultModel = "$($defaultData.providerID)/$($defaultData.modelID)"
+      }
+    }
+    return [pscustomobject]@{ Models = @($models); Default = $defaultModel }
+  } catch {
+    Write-Host "    Model listesi alinamadi: $($_.Exception.Message)" -ForegroundColor Yellow
+    return $null
+  }
+}
+
+function Select-Model($catalog, [string]$currentModel) {
+  if (-not $catalog -or $catalog.Models.Count -eq 0) {
+    return [pscustomobject]@{ Action = "keep"; Model = $currentModel }
+  }
+  Write-Host ""
+  Write-Host "Mevcut model: $currentModel" -ForegroundColor DarkGray
+  Write-Host "Model secimi:" -ForegroundColor Cyan
+  Write-Host "  0) Mevcut modeli koru" -ForegroundColor Gray
+  Write-Host "  1) Model listesinden sec" -ForegroundColor Gray
+  Write-Host "  2) Model alanini bos birak (OpenCode'da sec)" -ForegroundColor Gray
+  $choice = Read-Host "Secim [0]"
+  if ([string]::IsNullOrWhiteSpace($choice)) { $choice = "0" }
+  if ($choice -eq "0") {
+    return [pscustomobject]@{ Action = "keep"; Model = $currentModel }
+  }
+  if ($choice -eq "2") {
+    return [pscustomobject]@{ Action = "clear"; Model = "" }
+  }
+  if ($choice -ne "1") {
+    return [pscustomobject]@{ Action = "keep"; Model = $currentModel }
+  }
+
+  $available = @($catalog.Models | Where-Object { $_.Tools })
+  if ($available.Count -eq 0) { $available = @($catalog.Models) }
+  $flat = @()
+  $index = 1
+  foreach ($group in ($available | Group-Object Provider | Sort-Object Name)) {
+    Write-Host "  [$($group.Name)]" -ForegroundColor DarkCyan
+    foreach ($model in $group.Group) {
+      $suffix = if ($model.Vision) { " (vision)" } else { "" }
+      Write-Host ("    {0,3}) {1}{2}" -f $index, $model.Id, $suffix)
+      $flat += $model
+      $index++
+    }
+  }
+  $pick = Read-Host "Model numarasi (bos = mevcut)"
+  if ([string]::IsNullOrWhiteSpace($pick)) {
+    return [pscustomobject]@{ Action = "keep"; Model = $currentModel }
+  }
+  $number = 0
+  if (-not [int]::TryParse($pick, [ref]$number) -or $number -lt 1 -or $number -gt $flat.Count) {
+    Write-Host "    Gecersiz secim; mevcut model korunuyor." -ForegroundColor Yellow
+    return [pscustomobject]@{ Action = "keep"; Model = $currentModel }
+  }
+  return [pscustomobject]@{ Action = "set"; Model = $flat[$number - 1].Id }
+}
+
+function Set-OpenCodeModel([string]$modelID) {
+  $target = Join-Path $configDir "opencode.json"
+  if (-not (Test-Path $target)) { return }
+  try {
+    $config = Get-Content $target -Raw | ConvertFrom-Json
+    if ([string]::IsNullOrWhiteSpace($modelID)) {
+      if ($config.PSObject.Properties.Name -contains "model") {
+        $config.PSObject.Properties.Remove("model")
+      }
+    } else {
+      if ($config.PSObject.Properties.Name -contains "model") {
+        $config.model = $modelID
+      } else {
+        $config | Add-Member -NotePropertyName model -NotePropertyValue $modelID
+      }
+    }
+    Write-Utf8NoBom $target ($config | ConvertTo-Json -Depth 100)
+  } catch {
+    Write-Host "    Model yazilamadi: $($_.Exception.Message)" -ForegroundColor Yellow
   }
 }
 
@@ -83,7 +230,7 @@ if (Test-Path $targetConfig) {
     } else {
       $existing | Add-Member -NotePropertyName default_agent -NotePropertyValue $template.default_agent
     }
-    $existing | ConvertTo-Json -Depth 100 | Set-Content -Path $targetConfig -Encoding UTF8
+    Write-Utf8NoBom $targetConfig ($existing | ConvertTo-Json -Depth 100)
     Write-Host "    mevcut config korunarak plugin/default agent eklendi; model degistirilmedi." -ForegroundColor Green
   } catch {
     Write-Host "    Mevcut config JSON olarak okunamadi; yeni config ayri dosyaya yazildi." -ForegroundColor Yellow
@@ -92,6 +239,57 @@ if (Test-Path $targetConfig) {
 } else {
   Copy-Item (Join-Path $kitRoot "config\opencode.json") $targetConfig -Force
   Write-Host "    yeni config yazildi." -ForegroundColor Green
+}
+
+Write-Step "Model secimi"
+$currentModel = $null
+if (Test-Path $targetConfig) {
+  try {
+    $currentModel = [string](Get-Content $targetConfig -Raw | ConvertFrom-Json).model
+  } catch {
+    $currentModel = $null
+  }
+}
+if (-not [string]::IsNullOrWhiteSpace($Model)) {
+  if ($Model -notmatch '^[^/\s]+/[^/\s]+$') {
+    throw "Model formati gecersiz. Ornek: opencode-go/deepseek-v4.1-flash"
+  }
+  Set-OpenCodeModel $Model
+  Write-Host "    model: $Model" -ForegroundColor Green
+} elseif ($NoModelPrompt) {
+  if ([string]::IsNullOrWhiteSpace($currentModel)) {
+    Write-Host "    UYARI: Model secili degil. OpenCode'da bir provider/model sec." -ForegroundColor Yellow
+  } else {
+    Write-Host "    mevcut model korunuyor: $currentModel" -ForegroundColor DarkGray
+  }
+} else {
+  $service = Get-OpenCodeService
+  $catalog = Get-ModelCatalog $service
+  if (-not $catalog) {
+    Write-Host "    OpenCode servisi kapali veya model listesi alinamadi." -ForegroundColor Yellow
+    Write-Host "    Model secimini OpenCode icinden yapabilirsin." -ForegroundColor DarkGray
+    if ([string]::IsNullOrWhiteSpace($currentModel)) {
+      Write-Host "    UYARI: Model secili degil." -ForegroundColor Yellow
+    }
+  } else {
+    if (-not [string]::IsNullOrWhiteSpace($catalog.Default)) {
+      Write-Host "    varsayilan model: $($catalog.Default)" -ForegroundColor DarkGray
+    }
+    $selected = Select-Model $catalog $currentModel
+    if ($selected.Action -eq "set") {
+      Set-OpenCodeModel $selected.Model
+      Write-Host "    model: $($selected.Model)" -ForegroundColor Green
+    } elseif ($selected.Action -eq "clear") {
+      Set-OpenCodeModel ""
+      Write-Host "    model alani bos birakildi; OpenCode'da secilecek." -ForegroundColor DarkGray
+    } else {
+      if ([string]::IsNullOrWhiteSpace($currentModel)) {
+        Write-Host "    model secili degil; OpenCode'da secilecek." -ForegroundColor Yellow
+      } else {
+        Write-Host "    mevcut model korunuyor: $currentModel" -ForegroundColor DarkGray
+      }
+    }
+  }
 }
 
 Write-Step "OMO-slim, AGENTS.md ve board guard kuruluyor"
@@ -111,7 +309,7 @@ Copy-Item (Join-Path $kitRoot "config\oh-my-opencode-slim.json") $omoTarget -For
 if ($preservedPreset) {
   $newOmo = Get-Content $omoTarget -Raw | ConvertFrom-Json
   $newOmo.preset = $preservedPreset
-  $newOmo | ConvertTo-Json -Depth 100 | Set-Content -Path $omoTarget -Encoding UTF8
+  Write-Utf8NoBom $omoTarget ($newOmo | ConvertTo-Json -Depth 100)
   Write-Host "    mevcut OMO preset korundu: $preservedPreset" -ForegroundColor DarkGray
 }
 Copy-Item (Join-Path $kitRoot "config\AGENTS.md") (Join-Path $configDir "AGENTS.md") -Force

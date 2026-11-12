@@ -63,6 +63,14 @@ try {
   Check "Panel health" $false $_.Exception.Message
 }
 
+try {
+  $setup = Invoke-RestMethod -UseBasicParsing "http://127.0.0.1:43124/api/setup" -TimeoutSec 10
+  $modelDetail = if ($setup.hasModel) { $setup.defaultModel } else { "OpenCode'da bir provider/model sec" }
+  Check "Varsayilan model" ([bool]$setup.hasModel) $modelDetail
+} catch {
+  Check "Varsayilan model" $false $_.Exception.Message
+}
+
 Check "Startup shortcut" (Test-Path (Join-Path $startupDir "Ajan Panosu.lnk"))
 Check "Desktop shortcut" (Test-Path (Join-Path $desktopDir "Ajan Panosu.url"))
 

@@ -56,6 +56,39 @@
   .badge.stuck { color:var(--red); border-color:#7f1d1d; background:#2a0a0a; }
   .stop-btn { background:#2a0a0a; color:var(--red); border:1px solid #7f1d1d; border-radius:5px; padding:2px 7px; font:10px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; cursor:pointer; }
   .stop-btn:hover { background:#3f0f0f; }
+  .top-btn { background:#17171c; color:var(--text); border:1px solid #3f3f46; border-radius:6px; padding:3px 8px; font:10px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; cursor:pointer; }
+  .top-btn:hover { background:#1f1f27; border-color:#52525b; }
+  .setup-banner { display:flex; align-items:center; gap:9px; padding:8px 16px; background:#1c1002; border-bottom:1px solid #78350f; color:#fbbf24; font-size:11px; }
+  .setup-banner strong { color:#fde68a; }
+  .modal { width:min(920px,94vw); max-height:86vh; border:1px solid #3f3f46; border-radius:12px; background:var(--panel); color:var(--text); padding:0; box-shadow:0 20px 80px rgba(0,0,0,.6); }
+  .modal::backdrop { background:rgba(0,0,0,.72); }
+  .modal-head { display:flex; align-items:center; gap:9px; padding:11px 14px; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--panel); z-index:1; }
+  .modal-head h2 { margin:0; }
+  .modal-body { padding:12px 14px 16px; overflow:auto; max-height:calc(86vh - 54px); }
+  .modal-hint { color:var(--muted); font-size:10px; margin-bottom:9px; }
+  .model-filter { margin-bottom:8px; }
+  .model-filter input { width:100%; background:#17171c; color:var(--text); border:1px solid #3f3f46; border-radius:6px; padding:5px 8px; font:11px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+  .profile-row { display:grid; grid-template-columns:40px minmax(120px,1fr) minmax(220px,1.4fr) minmax(90px,.6fr) auto; gap:8px; align-items:center; border:1px solid var(--line); background:var(--panel2); border-radius:9px; padding:8px 10px; margin:6px 0; }
+  .profile-row .avatar { width:34px; height:34px; }
+  .profile-name { font-weight:700; font-size:11px; }
+  .profile-role { color:var(--muted); font-size:9px; }
+  .profile-row select { background:#17171c; color:var(--text); border:1px solid #3f3f46; border-radius:5px; padding:3px 5px; font:10px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; max-width:100%; }
+  .profile-status { color:var(--muted); font-size:9px; min-width:54px; }
+  .profile-status.ok { color:var(--green); }
+  .profile-status.err { color:var(--red); }
+  .detail-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:6px; margin-bottom:10px; }
+  .detail-metric { border:1px solid var(--line); background:var(--panel2); border-radius:7px; padding:6px 8px; }
+  .detail-metric .k { color:var(--muted); font-size:9px; }
+  .detail-metric .v { color:var(--text); font-size:11px; margin-top:2px; word-break:break-word; }
+  .tool-row { border:1px solid var(--line); background:var(--panel2); border-radius:8px; padding:7px 9px; margin:5px 0; }
+  .tool-row .row { gap:6px; }
+  .tool-name { color:var(--accent); font-weight:700; font-size:10px; }
+  .tool-desc { color:#c7c7d1; font-size:10px; margin-top:3px; word-break:break-word; }
+  .tool-error { color:var(--red); font-size:10px; margin-top:3px; }
+  .tool-status { font-size:9px; border:1px solid var(--line); border-radius:99px; padding:1px 5px; color:var(--muted); }
+  .tool-status.completed { color:var(--green); border-color:#14532d; }
+  .tool-status.error { color:var(--red); border-color:#7f1d1d; }
+  .tool-status.running { color:var(--blue); border-color:#164e63; }
   .agent.stuck { border-color:#7f1d1d; background:#160d0d; }
   .task-card { display:grid; grid-template-columns:34px minmax(0,1fr); gap:9px; border:1px solid var(--line); background:var(--panel); border-radius:9px; padding:8px 10px; margin:6px 0; }
   .task-card.stuck { border-color:#7f1d1d; background:#1a0f0f; }
@@ -88,6 +121,7 @@
   .status.review { color:var(--orange); }
   .status.blocked { color:var(--red); }
   @media (max-width:1100px) { main { grid-template-columns:1fr; } #boardPane { border-left:0; border-top:1px solid var(--line); max-height:none; } #activePane { max-height:none; } }
+  @media (max-width:700px) { .profile-row { grid-template-columns:34px 1fr; } .profile-row select, .profile-row .top-btn, .profile-status { grid-column:2; } }
 </style>
 </head>
 <body>
@@ -97,8 +131,15 @@
   <select class="project-select" id="projectSelect" title="Proje seç"></select>
   <span class="muted" id="status">bağlanıyor...</span>
   <span class="spacer"></span>
+  <button class="top-btn" id="modelsBtn" title="Agent bazlı model profilleri">Modeller</button>
   <span class="muted" id="clock"></span>
 </header>
+<div id="setupBanner" class="setup-banner" style="display:none">
+  <strong>Model seçili değil.</strong>
+  <span>OpenCode'da bir provider/model seç veya agent profillerini buradan ayarla.</span>
+  <span class="spacer"></span>
+  <button class="top-btn" data-open-models>Model Profilleri</button>
+</div>
 <main>
   <section id="activePane">
     <div class="section-head">
@@ -126,6 +167,28 @@
     <div id="boards"><div class="empty">board yükleniyor...</div></div>
   </section>
 </main>
+<dialog id="modelsDialog" class="modal">
+  <div class="modal-head">
+    <h2>Model Profilleri</h2>
+    <span class="muted" id="modelsPreset"></span>
+    <span class="spacer"></span>
+    <button class="top-btn" id="modelsClose">Kapat</button>
+  </div>
+  <div class="modal-body">
+    <div class="modal-hint" id="modelsHint">Her ajan için oturum modelini veya belirli bir modeli seç. Değişiklikler OMO config'e yazılır; OpenCode yeniden başlatılınca veya live refresh ile uygulanır.</div>
+    <div class="model-filter"><input id="modelFilter" placeholder="Model ara..." /></div>
+    <div id="profiles"><div class="empty">yükleniyor...</div></div>
+  </div>
+</dialog>
+<dialog id="detailDialog" class="modal">
+  <div class="modal-head">
+    <h2 id="detailTitle">Oturum Detayı</h2>
+    <span class="spacer"></span>
+    <button class="top-btn" id="detailRefresh">Yenile</button>
+    <button class="top-btn" id="detailClose">Kapat</button>
+  </div>
+  <div class="modal-body" id="detailBody"><div class="empty">yükleniyor...</div></div>
+</dialog>
 <script>
 const activeEl = document.getElementById("active");
 const boardsEl = document.getElementById("boards");
@@ -137,10 +200,22 @@ const tasksEl = document.getElementById("tasks");
 const taskHead = document.getElementById("taskHead");
 const taskSummaryEl = document.getElementById("taskSummary");
 const projectSelect = document.getElementById("projectSelect");
+const setupBanner = document.getElementById("setupBanner");
+const modelsDialog = document.getElementById("modelsDialog");
+const detailDialog = document.getElementById("detailDialog");
+const profilesEl = document.getElementById("profiles");
+const modelsPresetEl = document.getElementById("modelsPreset");
+const modelFilterEl = document.getElementById("modelFilter");
+const detailBody = document.getElementById("detailBody");
+const detailTitle = document.getElementById("detailTitle");
 const STUCK_MS = 15 * 60 * 1000;
-let state = { sessions: [], active: {}, agents: [], boards: [], projects: [], tasks: [] };
+let state = { sessions: [], active: {}, agents: [], boards: [], projects: [], tasks: [], setup: {} };
 let filterMode = "active";
 let projectParam = new URLSearchParams(location.search).get("project") || "";
+let modelCatalog = [];
+let modelProfiles = {};
+let activePreset = "";
+let detailSessionID = "";
 
 const roleFallback = {
   orchestrator: "Planlar, dağıtır, sonuçları birleştirir",
@@ -261,7 +336,7 @@ function renderTasks(){
     const st=taskStatus(t); const parent=(state.sessions||[]).find(s=>s.id===t.sessionID);
     return '<article class="task-card '+st.cls+'">'+
       '<img class="avatar" src="'+esc(avatarFor(t.agent))+'" alt="'+esc(name)+'" />'+
-      '<div><div class="row"><span class="agent-name">'+esc(name)+'</span><span class="badge '+st.cls+'">'+esc(st.label)+'</span><span class="pill">#'+esc(t.agent)+'</span><span class="spacer"></span><span class="metric">'+esc(fmtDuration(t.elapsedMs))+'</span>'+(t.stuck?'<button class="stop-btn" data-stop-session="'+esc(t.sessionID)+'" data-stop-label="'+esc(name+" — "+(t.description||t.tool))+'">Durdur</button>':'')+'</div>'+
+      '<div><div class="row"><span class="agent-name">'+esc(name)+'</span><span class="badge '+st.cls+'">'+esc(st.label)+'</span><span class="pill">#'+esc(t.agent)+'</span><span class="spacer"></span><span class="metric">'+esc(fmtDuration(t.elapsedMs))+'</span><button class="top-btn" data-detail-session="'+esc(t.sessionID)+'">Detay</button>'+(t.stuck?'<button class="stop-btn" data-stop-session="'+esc(t.sessionID)+'" data-stop-label="'+esc(name+" — "+(t.description||t.tool))+'">Durdur</button>':'')+'</div>'+
       '<div class="task-title" title="'+esc(t.description||t.tool)+'">'+esc(t.description||t.tool)+'</div>'+
       '<div class="task-meta"><span>üst: '+esc(parent?.title||t.sessionTitle||t.sessionID)+'</span><span>oturum #'+esc(shortId(t.sessionID))+'</span>'+(t.stuck?'<span>15 dk+ güncelleme yok</span>':'')+'</div>'+
       '</div></article>';
@@ -279,7 +354,7 @@ function renderActive(){
       return '<article class="agent '+st.cls+'">'+
         '<img class="avatar" src="'+esc(avatarFor(id))+'" alt="'+esc(name2)+'" />'+
         '<div class="agent-body">'+
-          '<div class="row"><span class="agent-name">'+esc(name2)+'</span><span class="badge '+st.cls+'">'+esc(st.label)+'</span><span class="pill">#'+esc(id)+'</span><span class="spacer"></span><span class="metric cost">'+esc(fmtCost(s.cost))+'</span>'+(st.cls==="stuck"?'<button class="stop-btn" data-stop-session="'+esc(s.id)+'" data-stop-label="'+esc(name2+" — "+(s.title||s.id))+'">Durdur</button>':'')+'</div>'+
+          '<div class="row"><span class="agent-name">'+esc(name2)+'</span><span class="badge '+st.cls+'">'+esc(st.label)+'</span><span class="pill">#'+esc(id)+'</span><span class="spacer"></span><span class="metric cost">'+esc(fmtCost(s.cost))+'</span><button class="top-btn" data-detail-session="'+esc(s.id)+'">Detay</button>'+(st.cls==="stuck"?'<button class="stop-btn" data-stop-session="'+esc(s.id)+'" data-stop-label="'+esc(name2+" — "+(s.title||s.id))+'">Durdur</button>':'')+'</div>'+
           '<div class="agent-title" title="'+esc(s.title||s.id)+'">'+esc(s.title||s.id)+'</div>'+
           '<div class="agent-meta"><span>'+esc(modelText(s))+'</span><span>'+esc(s.parentID?"alt oturum":"ana oturum")+'</span><span>oturum #'+esc(shortId(s.id))+'</span></div>'+
           (pt?'<div class="parent">üst: '+esc(pt)+'</div>':'')+
@@ -344,6 +419,157 @@ function renderSummary(){
   const stuck=(state.tasks||[]).filter(t=>t.stuck).length;
   summaryEl.textContent="Görünen "+list.length+" oturum · toplam "+fmtTokens(input)+" in · "+fmtTokens(output)+" out · "+fmtCost(cost)+(stuck?" · "+stuck+" takılı görev":"");
 }
+function modelOptions(current){
+  const groups=new Map();
+  for(const model of modelCatalog){
+    if(!model.tools) continue;
+    if(!groups.has(model.providerID)) groups.set(model.providerID,[]);
+    groups.get(model.providerID).push(model);
+  }
+  let html='<option value="__session"'+(current==="__session"?" selected":"")+'>Oturum modeli (önerilen)</option>';
+  for(const [provider,models] of [...groups.entries()].sort((a,b)=>a[0].localeCompare(b[0]))){
+    html+='<optgroup label="'+esc(provider)+'">';
+    for(const model of models.sort((a,b)=>a.name.localeCompare(b.name))){
+      const label=model.name+(model.vision?" · vision":"")+(model.context?" · "+fmtTokens(model.context):"");
+      html+='<option value="'+esc(model.id)+'"'+(current===model.id?" selected":"")+'>'+esc(label)+'</option>';
+    }
+    html+='</optgroup>';
+  }
+  const available=modelCatalog.filter(model=>model.tools);
+  if(current!=="__session" && !available.some(model=>model.id===current)){
+    html+='<option value="'+esc(current)+'" selected>'+esc(current)+' (listede yok)</option>';
+  }
+  return html;
+}
+function variantOptions(modelID,currentVariant){
+  const model=modelCatalog.find(item=>item.id===modelID);
+  const variants=model?.variants||[];
+  if(!variants.length) return '<option value="">varsayılan</option>';
+  return '<option value="">varsayılan</option>'+variants.map(variant=>'<option value="'+esc(variant)+'"'+(currentVariant===variant?" selected":"")+'>'+esc(variant)+'</option>').join("");
+}
+function updateVariantSelects(){
+  document.querySelectorAll("[data-model-select]").forEach(select=>{
+    const agent=select.dataset.modelSelect;
+    const variant=document.querySelector('[data-variant-select="'+CSS.escape(agent)+'"]');
+    if(!variant) return;
+    const current=variant.value;
+    const modelID=select.value==="__session"?"":select.value;
+    variant.innerHTML=variantOptions(modelID,current);
+    variant.disabled=!modelID;
+  });
+}
+function renderProfiles(){
+  const agents=["orchestrator","oracle","explorer","designer","fixer","observer"];
+  profilesEl.innerHTML=agents.map(agent=>{
+    const info=agentInfo(agent); const name=info.name||agent;
+    const profile=modelProfiles[agent]||{mode:"session",model:null,variant:null};
+    const current=profile.mode==="model"?profile.model:"__session";
+    return '<div class="profile-row" data-profile-row="'+esc(agent)+'">'+
+      '<img class="avatar" src="'+esc(avatarFor(agent))+'" alt="'+esc(name)+'" />'+
+      '<div><div class="profile-name">'+esc(name)+'</div><div class="profile-role">'+esc(roleFallback[agent]||"")+'</div></div>'+
+      '<select data-model-select="'+esc(agent)+'">'+modelOptions(current)+'</select>'+
+      '<select data-variant-select="'+esc(agent)+'">'+variantOptions(profile.model,profile.variant)+'</select>'+
+      '<div class="row"><button class="top-btn" data-save-profile="'+esc(agent)+'">Kaydet</button><span class="profile-status" data-profile-status="'+esc(agent)+'"></span></div>'+
+      '</div>';
+  }).join("");
+  updateVariantSelects();
+}
+async function openModels(){
+  if(!modelsDialog.open) modelsDialog.showModal();
+  profilesEl.innerHTML='<div class="empty">yükleniyor...</div>';
+  modelsPresetEl.textContent="";
+  modelFilterEl.value="";
+  try {
+    const r=await fetch("/api/models"); if(!r.ok) throw new Error(await r.text());
+    const data=await r.json();
+    modelCatalog=data.models||[];
+    modelProfiles=data.profiles||{};
+    activePreset=data.preset||"";
+    modelsPresetEl.textContent="preset: "+activePreset;
+    renderProfiles();
+    filterModelOptions("");
+  } catch(e) {
+    profilesEl.innerHTML='<div class="empty">Model listesi alınamadı: '+esc(e.message)+'</div>';
+  }
+}
+async function saveProfile(agent){
+  const modelSelect=document.querySelector('[data-model-select="'+CSS.escape(agent)+'"]');
+  const variantSelect=document.querySelector('[data-variant-select="'+CSS.escape(agent)+'"]');
+  const status=document.querySelector('[data-profile-status="'+CSS.escape(agent)+'"]');
+  if(!modelSelect||!status) return;
+  const mode=modelSelect.value==="__session"?"session":"model";
+  const body={agent,mode};
+  if(mode==="model"){
+    body.model=modelSelect.value;
+    if(variantSelect?.value) body.variant=variantSelect.value;
+  }
+  status.textContent="kaydediliyor..."; status.className="profile-status";
+  try {
+    const r=await fetch("/api/profile",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+    if(!r.ok) throw new Error(await r.text());
+    const data=await r.json();
+    modelProfiles=data.profiles||modelProfiles;
+    status.textContent=data.dryRun?"test modu":"kaydedildi"; status.className="profile-status ok";
+    refresh();
+  } catch(e) {
+    status.textContent=e.message.slice(0,40); status.className="profile-status err";
+  }
+}
+function filterModelOptions(query){
+  const q=query.toLowerCase().trim();
+  document.querySelectorAll("[data-model-select]").forEach(select=>{
+    select.querySelectorAll("option").forEach(option=>{
+      if(option.value==="__session"){ option.hidden=false; return; }
+      option.hidden=Boolean(q) && !option.textContent.toLowerCase().includes(q);
+    });
+    select.querySelectorAll("optgroup").forEach(group=>{
+      const visible=[...group.querySelectorAll("option")].some(option=>!option.hidden);
+      group.hidden=!visible;
+    });
+  });
+}
+async function openDetail(sessionID){
+  detailSessionID=sessionID;
+  if(!detailDialog.open) detailDialog.showModal();
+  detailTitle.textContent="Oturum Detayı";
+  detailBody.innerHTML='<div class="empty">yükleniyor...</div>';
+  try {
+    const r=await fetch("/api/session-detail?session="+encodeURIComponent(sessionID));
+    if(!r.ok) throw new Error(await r.text());
+    renderDetail(await r.json());
+  } catch(e) {
+    detailBody.innerHTML='<div class="empty">Detay alınamadı: '+esc(e.message)+'</div>';
+  }
+}
+function renderDetail(data){
+  const session=data.session||{};
+  detailTitle.textContent=session.title||session.id||"Oturum Detayı";
+  const tokens=session.tokens||{};
+  const input=tokens.input||0;
+  const output=(tokens.output||0)+(tokens.reasoning||0);
+  const activeIds=new Set(Object.keys(state.active||{}));
+  const stuck=activeIds.has(session.id) && session.updated && (Date.now()-session.updated)>STUCK_MS;
+  const outcomeLabel=session.outcome==="succeeded"?"bitti":session.outcome==="failed"?"hata":session.outcome==="interrupted"?"iptal":session.outcome||"çalışıyor";
+  const toolRows=(data.tools||[]).map(tool=>{
+    const cls=tool.status==="error"?"error":tool.status==="running"?"running":tool.status==="completed"?"completed":"";
+    return '<div class="tool-row"><div class="row"><span class="tool-name">'+esc(tool.name)+'</span><span class="tool-status '+cls+'">'+esc(tool.status)+'</span>'+(tool.agent?'<span class="pill">#'+esc(tool.agent)+'</span>':'')+'<span class="spacer"></span><span class="metric">'+esc(fmtDuration(tool.durationMs))+'</span></div>'+
+      '<div class="tool-desc">'+esc(tool.description||"")+'</div>'+
+      (tool.error?'<div class="tool-error">'+esc(tool.error)+'</div>':'')+
+      '</div>';
+  }).join("");
+  detailBody.innerHTML='<div class="detail-grid">'+
+    '<div class="detail-metric"><div class="k">Ajan</div><div class="v">'+esc(session.agent||"?")+'</div></div>'+
+    '<div class="detail-metric"><div class="k">Model</div><div class="v">'+esc(session.model||"oturum modeli")+'</div></div>'+
+    '<div class="detail-metric"><div class="k">Durum</div><div class="v">'+esc(outcomeLabel)+'</div></div>'+
+    '<div class="detail-metric"><div class="k">Token</div><div class="v">'+esc(fmtTokens(input)+" in · "+fmtTokens(output)+" out")+'</div></div>'+
+    '<div class="detail-metric"><div class="k">Maliyet</div><div class="v">'+esc(fmtCost(session.cost))+'</div></div>'+
+    '<div class="detail-metric"><div class="k">Son işlem</div><div class="v">'+esc(ago(session.updated))+'</div></div>'+
+    '</div>'+
+    (session.error?'<div class="tool-error">'+esc(session.error)+'</div>':'')+
+    (stuck?'<div class="row" style="margin-bottom:9px"><button class="stop-btn" data-stop-session="'+esc(session.id)+'" data-stop-label="'+esc(session.title||session.id)+'">Durdur</button></div>':'')+
+    '<h2 style="margin-top:12px">Son Tool Çağrıları</h2>'+
+    (toolRows||'<div class="empty">Tool çağrısı yok.</div>');
+}
 async function refresh(){
   const activeScroll=activeEl.parentElement?.scrollTop||0;
   const boardScroll=boardsEl.parentElement?.scrollTop||0;
@@ -351,6 +577,9 @@ async function refresh(){
     const query=projectParam?"?project="+encodeURIComponent(projectParam):"";
     const r=await fetch("/api/state"+query); if(!r.ok) throw new Error("HTTP "+r.status);
     state=await r.json();
+    const setup=state.setup||{};
+    setupBanner.style.display=setup.hasModel?"none":"flex";
+    setupBanner.title=setup.defaultModel?("Varsayılan model: "+setup.defaultModel):"OpenCode'da bir model seç";
     renderProjectSelect();
     const list=visibleSessions();
     const running=list.filter(s=>statusFor(s).cls==="running").length;
@@ -382,9 +611,23 @@ async function stopSession(sessionID,label){
   }
 }
 document.addEventListener("click",event=>{
-  const button=event.target.closest("[data-stop-session]");
-  if(!button) return;
-  stopSession(button.dataset.stopSession,button.dataset.stopLabel||"Oturum");
+  const stop=event.target.closest("[data-stop-session]");
+  if(stop){ stopSession(stop.dataset.stopSession,stop.dataset.stopLabel||"Oturum"); return; }
+  const detail=event.target.closest("[data-detail-session]");
+  if(detail){ openDetail(detail.dataset.detailSession); return; }
+  if(event.target.closest("[data-open-models]")){ openModels(); return; }
+});
+document.getElementById("modelsBtn").addEventListener("click",openModels);
+document.getElementById("modelsClose").addEventListener("click",()=>modelsDialog.close());
+document.getElementById("detailClose").addEventListener("click",()=>detailDialog.close());
+document.getElementById("detailRefresh").addEventListener("click",()=>{ if(detailSessionID) openDetail(detailSessionID); });
+modelFilterEl.addEventListener("input",()=>filterModelOptions(modelFilterEl.value));
+profilesEl.addEventListener("change",event=>{
+  if(event.target.matches("[data-model-select]")) updateVariantSelects();
+});
+profilesEl.addEventListener("click",event=>{
+  const save=event.target.closest("[data-save-profile]");
+  if(save) saveProfile(save.dataset.saveProfile);
 });
 projectSelect.addEventListener("change",()=>{
   projectParam=projectSelect.value;
