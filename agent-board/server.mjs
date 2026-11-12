@@ -98,6 +98,50 @@ async function upstream(pathname, timeoutMs = 15000) {
   return JSON.parse(text);
 }
 
+async function upstreamPost(pathname, timeoutMs = 15000) {
+  const url = cached.url || (cached.url = resolveServerUrl());
+  let response;
+  try {
+    response = await fetch(url + pathname, {
+      method: "POST",
+      headers: { Authorization: authHeader() },
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch (error) {
+    cached.url = null;
+    cached.auth = null;
+    throw error;
+  }
+  const text = await response.text();
+  if (!response.ok) {
+    const error = new Error(`Upstream ${response.status}: ${text.slice(0, 500)}`);
+    error.status = response.status;
+    throw error;
+  }
+  return text ? JSON.parse(text) : {};
+}
+
+function readJson(req, limit = 64 * 1024) {
+  return new Promise((resolve, reject) => {
+    let data = "";
+    req.on("data", (chunk) => {
+      data += chunk;
+      if (data.length > limit) {
+        reject(new Error("request body too large"));
+        req.destroy();
+      }
+    });
+    req.on("end", () => {
+      try {
+        resolve(data ? JSON.parse(data) : {});
+      } catch {
+        reject(new Error("invalid JSON body"));
+      }
+    });
+    req.on("error", reject);
+  });
+}
+
 function isWorktree(dir) {
   const normalized = dir.replaceAll("\\", "/").toLowerCase();
   return normalized.includes("/worktree/") || normalized.includes("/.slim/worktrees/");
@@ -423,6 +467,83 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname.startsWith("/assets/")) {
       serveStatic(res, url.pathname);
+      return;
+    }
+    if (url.pathname === "/api/interrupt") {
+      if (req.method !== "POST") {
+        res.writeHead(405, { "content-type": "text/plain; charset=utf-8" });
+        res.end("method not allowed");
+        return;
+      }
+      const origin = req.headers.origin;
+      const allowedOrigins = new Set([
+        `http://127.0.0.1:${PORT}`,
+        `http://localhost:${PORT}`,
+      ]);
+      if (origin && !allowedOrigins.has(origin)) {
+        res.writeHead(403, { "content-type": "text/plain; charset=utf-8" });
+        res.end("forbidden origin");
+        return;
+      }
+      let body;
+      try {
+        body = await readJson(req);
+      } catch (error) {
+        res.writeHead(400, { "content-type": "text/plain; charset=utf-8" });
+        res.end(error.message);
+        return;
+      }
+      const sessionID = String(body.sessionID || "");
+      if (!/^ses_[A-Za-z0-9]+$/.test(sessionID)) {
+        res.writeHead(400, { "content-type": "text/plain; charset=utf-8" });
+        res.end("invalid session id");
+        return;
+      }
+      const active = await upstream("/api/session/active").catch(() => ({}));
+      const activeMap = Array.isArray(active) ? {} : active.data || active || {};
+      if (!activeMap[sessionID]) {
+        res.writeHead(409, { "content-type": "text/plain; charset=utf-8" });
+        res.end("session is not active");
+        return;
+      }
+      const sessionResponse = await upstream(
+        `/api/session/${encodeURIComponent(sessionID)}`,
+      );
+      const session = Array.isArray(sessionResponse)
+        ? sessionResponse[0]
+        : sessionResponse.data || sessionResponse;
+      const messagesResponse = await upstream(
+        `/api/session/${encodeURIComponent(sessionID)}/message?limit=${TASK_MESSAGE_LIMIT}`,
+        TASK_FETCH_TIMEOUT_MS,
+      );
+      const messages = Array.isArray(messagesResponse)
+        ? messagesResponse
+        : messagesResponse.data || [];
+      const runningTasks = tasksFromMessages(session, messages).filter(
+        (task) => task.status === "running",
+      );
+      if (!runningTasks.length) {
+        res.writeHead(409, { "content-type": "text/plain; charset=utf-8" });
+        res.end("no running subagent task");
+        return;
+      }
+      let interrupted = false;
+      if (process.env.AGENT_BOARD_INTERRUPT_DRY_RUN !== "1") {
+        const result = await upstreamPost(
+          `/api/session/${encodeURIComponent(sessionID)}/interrupt`,
+        );
+        interrupted = result.interrupted === true;
+      }
+      res.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+      res.end(
+        JSON.stringify({
+          ok: true,
+          dryRun: process.env.AGENT_BOARD_INTERRUPT_DRY_RUN === "1",
+          interrupted,
+          sessionID,
+          stoppedTasks: runningTasks.length,
+        }),
+      );
       return;
     }
     if (url.pathname === "/api/state") {

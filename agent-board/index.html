@@ -54,6 +54,8 @@
   .badge.failed { color:var(--red); border-color:#7f1d1d; background:#2a0a0a; }
   .badge.idle { color:var(--muted); }
   .badge.stuck { color:var(--red); border-color:#7f1d1d; background:#2a0a0a; }
+  .stop-btn { background:#2a0a0a; color:var(--red); border:1px solid #7f1d1d; border-radius:5px; padding:2px 7px; font:10px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; cursor:pointer; }
+  .stop-btn:hover { background:#3f0f0f; }
   .agent.stuck { border-color:#7f1d1d; background:#160d0d; }
   .task-card { display:grid; grid-template-columns:34px minmax(0,1fr); gap:9px; border:1px solid var(--line); background:var(--panel); border-radius:9px; padding:8px 10px; margin:6px 0; }
   .task-card.stuck { border-color:#7f1d1d; background:#1a0f0f; }
@@ -259,7 +261,7 @@ function renderTasks(){
     const st=taskStatus(t); const parent=(state.sessions||[]).find(s=>s.id===t.sessionID);
     return '<article class="task-card '+st.cls+'">'+
       '<img class="avatar" src="'+esc(avatarFor(t.agent))+'" alt="'+esc(name)+'" />'+
-      '<div><div class="row"><span class="agent-name">'+esc(name)+'</span><span class="badge '+st.cls+'">'+esc(st.label)+'</span><span class="pill">#'+esc(t.agent)+'</span><span class="spacer"></span><span class="metric">'+esc(fmtDuration(t.elapsedMs))+'</span></div>'+
+      '<div><div class="row"><span class="agent-name">'+esc(name)+'</span><span class="badge '+st.cls+'">'+esc(st.label)+'</span><span class="pill">#'+esc(t.agent)+'</span><span class="spacer"></span><span class="metric">'+esc(fmtDuration(t.elapsedMs))+'</span>'+(t.stuck?'<button class="stop-btn" data-stop-session="'+esc(t.sessionID)+'" data-stop-label="'+esc(name+" — "+(t.description||t.tool))+'">Durdur</button>':'')+'</div>'+
       '<div class="task-title" title="'+esc(t.description||t.tool)+'">'+esc(t.description||t.tool)+'</div>'+
       '<div class="task-meta"><span>üst: '+esc(parent?.title||t.sessionTitle||t.sessionID)+'</span><span>oturum #'+esc(shortId(t.sessionID))+'</span>'+(t.stuck?'<span>15 dk+ güncelleme yok</span>':'')+'</div>'+
       '</div></article>';
@@ -277,7 +279,7 @@ function renderActive(){
       return '<article class="agent '+st.cls+'">'+
         '<img class="avatar" src="'+esc(avatarFor(id))+'" alt="'+esc(name2)+'" />'+
         '<div class="agent-body">'+
-          '<div class="row"><span class="agent-name">'+esc(name2)+'</span><span class="badge '+st.cls+'">'+esc(st.label)+'</span><span class="pill">#'+esc(id)+'</span><span class="spacer"></span><span class="metric cost">'+esc(fmtCost(s.cost))+'</span></div>'+
+          '<div class="row"><span class="agent-name">'+esc(name2)+'</span><span class="badge '+st.cls+'">'+esc(st.label)+'</span><span class="pill">#'+esc(id)+'</span><span class="spacer"></span><span class="metric cost">'+esc(fmtCost(s.cost))+'</span>'+(st.cls==="stuck"?'<button class="stop-btn" data-stop-session="'+esc(s.id)+'" data-stop-label="'+esc(name2+" — "+(s.title||s.id))+'">Durdur</button>':'')+'</div>'+
           '<div class="agent-title" title="'+esc(s.title||s.id)+'">'+esc(s.title||s.id)+'</div>'+
           '<div class="agent-meta"><span>'+esc(modelText(s))+'</span><span>'+esc(s.parentID?"alt oturum":"ana oturum")+'</span><span>oturum #'+esc(shortId(s.id))+'</span></div>'+
           (pt?'<div class="parent">üst: '+esc(pt)+'</div>':'')+
@@ -366,6 +368,24 @@ async function refresh(){
     activeEl.innerHTML='<div class="empty">'+esc(e.message)+'</div>';
   }
 }
+async function stopSession(sessionID,label){
+  const ok=confirm(label+"\n\nBu işlem sadece bu oturumun mevcut çalışmasını durdurur. Dosya silmez, board değiştirmez. Yarım kalan değişiklikler için tekrar çalıştırmadan önce git status kontrol et.\n\nDurdurulsun mu?");
+  if(!ok) return;
+  try {
+    const r=await fetch("/api/interrupt",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({sessionID})});
+    if(!r.ok) throw new Error(await r.text());
+    const result=await r.json();
+    if(result.dryRun) alert("Test modu: oturum durdurulmadı.");
+    refresh();
+  } catch(e) {
+    alert("Durdurulamadı: "+e.message);
+  }
+}
+document.addEventListener("click",event=>{
+  const button=event.target.closest("[data-stop-session]");
+  if(!button) return;
+  stopSession(button.dataset.stopSession,button.dataset.stopLabel||"Oturum");
+});
 projectSelect.addEventListener("change",()=>{
   projectParam=projectSelect.value;
   const url=new URL(location.href);

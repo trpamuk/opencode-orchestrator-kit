@@ -1,6 +1,6 @@
 # OpenCode Orchestrator Kit
 
-**Version:** 0.1.4  
+**Version:** 0.1.5  
 **Platform:** Windows 10/11  
 **Status:** early public preview
 
@@ -145,6 +145,7 @@ It shows:
 - elapsed time, last activity, input/output tokens and cost;
 - **Alt Görevler**: running `subagent`/`task` tool calls inside a session, even when they never create a separate child session;
 - a red **takıldı?** state when a session or subagent task has not updated for 15 minutes;
+- a **Durdur** button on stuck cards; it asks for confirmation and interrupts only that session's current run;
 - active task boards, parsed from the project's `.opencode/plans/` area;
 - a project selector so two projects never share one board view.
 
@@ -223,7 +224,9 @@ The dashboard now surfaces these calls directly:
 - open the project that owns the parent session;
 - check the **Alt Görevler** section;
 - a task that has not updated for 15 minutes is marked **takıldı?**;
-- stop the parent session, then fully restart OpenCode Desktop if the task does not clear.
+- click **Durdur** on the stuck card and confirm. This calls OpenCode's session interrupt and stops only the current run; it does not delete files or change task boards;
+- check `git status` before re-running the task, because a stopped fixer may leave uncommitted changes;
+- if the session does not clear, fully restart OpenCode Desktop.
 
 The kit also sets `backgroundJobs.wallClockTimeoutMs` to `1800000` (30 minutes) in the OMO-slim config. This aborts a background child session that was launched successfully. It cannot stop a native tool call that hangs before creating a child session; the dashboard warning is the early-warning path for that case.
 
@@ -252,6 +255,7 @@ doctor.cmd
 - No provider API keys are included in this repository or release.
 - `service.json`, `.env`, backups, logs and local ZIPs are excluded by `.gitignore`.
 - The dashboard listens on loopback only.
+- The **Durdur** button uses a local `POST /api/interrupt` endpoint. It accepts only same-origin requests and only active sessions that have a running subagent task. It interrupts execution; it never deletes files or boards.
 - Do not expose port `43124` to a LAN or the internet without an authenticated reverse proxy.
 - Review third-party OpenCode plugins before installing them.
 
@@ -277,7 +281,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Türkçe
 
-**Sürüm:** 0.1.4  
+**Sürüm:** 0.1.5  
 **Platform:** Windows 10/11
 
 Bu kit, OpenCode Desktop + OMO-slim + Ajan Panosu + Board Guard kurulumunu tek tıkla yapar.
@@ -304,6 +308,7 @@ OMO-slim'i ayrıca kurmana gerek yok; kit gerekli config'i yazar ve OpenCode `oh
 - OpenCode içinde: Review pane → yeni browser sekmesi → aynı URL
 - Sunucu Startup'ta otomatik başlar.
 - **Alt Görevler** bölümü, oturum içinde çalışan `subagent`/`task` çağrılarını gösterir; 15 dakikadır güncellenmeyenler `takıldı?` olur.
+- Takılı kartlarda **Durdur** butonu vardır; onay ister ve sadece o oturumun mevcut çalışmasını keser. Dosya/board değiştirmez; tekrar çalıştırmadan önce `git status` kontrol edilmeli.
 
 ### Board Guard
 

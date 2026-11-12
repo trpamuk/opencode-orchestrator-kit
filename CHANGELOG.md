@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.5 - 2026-11-12
+
+- Added a **Durdur** button to stuck session and subagent-task cards
+- The button asks for confirmation and calls OpenCode's session interrupt
+- Server-side guard: only active sessions with a running subagent task can be interrupted
+- Same-origin check on `POST /api/interrupt`
+- Documented that a stopped fixer may leave uncommitted changes; check `git status` before retrying
+
 ## 0.1.4 - 2026-11-12
 
 - Hide the legacy `current.md` board when it is only an index without a task table
