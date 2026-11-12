@@ -3,6 +3,5 @@
   "plugins": [
     "oh-my-opencode-slim@3.0.7"
   ],
-  "model": "opencode-go/deepseek-v4.1-flash",
   "default_agent": "orchestrator"
 }

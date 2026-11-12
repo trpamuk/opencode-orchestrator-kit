@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.0 - 2026-11-12
+
+- Removed the OpenCode Go requirement
+- The kit no longer pins a model in `opencode.json`
+- Added a model-agnostic `session` preset that inherits the model selected in OpenCode
+- Kept the tested `opencode-go` preset as an optional alternative
+- The installer preserves the user's selected model
+- `doctor.cmd` accepts both `session` and `opencode-go` presets
+- Documented per-agent model overrides and the Observer vision requirement
+
 ## 0.1.5 - 2026-11-12
 
 - Added a **Durdur** button to stuck session and subagent-task cards

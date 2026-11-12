@@ -1,6 +1,6 @@
 # OpenCode Orchestrator Kit
 
-**Version:** 0.1.5  
+**Version:** 0.2.0  
 **Platform:** Windows 10/11  
 **Status:** early public preview
 
@@ -36,7 +36,7 @@ It does **not** replace OpenCode or OMO-slim. It configures them and adds the mi
 | Component | Purpose |
 |---|---|
 | `opencode.json` bootstrap | Enables OMO-slim 3.0.7 and selects the orchestrator |
-| OMO-slim config | Presets, fallback models, marketplace agents, Companion disabled, 30-minute background-task timeout |
+| OMO-slim config | Session-model preset, optional OpenCode Go preset, marketplace agents, Companion disabled, 30-minute background-task timeout |
 | Global `AGENTS.md` | Board, worktree, review and merge policy |
 | `orchestrator_append.md` | Mandatory automatic orchestration workflow |
 | `plugins/board-guard.js` | OpenCode V2 plugin that isolates board writes |
@@ -54,10 +54,10 @@ Before running the kit, install:
 
 1. **OpenCode Desktop 2.x**
 2. **Node.js 22+**
-3. A working provider login, normally **OpenCode Go**
+3. **Any working provider/model configured in OpenCode** (OpenCode Go is optional)
 4. **Git** (recommended; Board Guard uses it to resolve the repository root)
 
-The kit does **not** install OpenCode Desktop or Node.js. It also does **not** contain provider API keys.
+The kit does **not** install OpenCode Desktop or Node.js. It also does **not** contain provider API keys and does **not** pin a model by default.
 
 ---
 
@@ -67,7 +67,7 @@ This is the important part:
 
 ```text
 1. Install OpenCode Desktop 2.x
-2. Sign in to OpenCode Go (or configure another compatible provider)
+2. Configure a provider and select a model in OpenCode (any provider; OpenCode Go is optional)
 3. Install Node.js 22+
 4. Extract this kit and run install.cmd
 5. Fully quit and reopen OpenCode Desktop
@@ -76,7 +76,53 @@ This is the important part:
 
 You do **not** need to install OMO-slim manually. The kit writes the OMO-slim plugin configuration and lets OpenCode install the pinned `oh-my-opencode-slim@3.0.7` package on startup.
 
-If OMO-slim is already installed, the installer backs up the existing global config and replaces the orchestration config with the kit version. Existing `opencode.json` provider settings are preserved and merged.
+You do **not** need an OpenCode Go subscription. The default preset inherits the model you selected in OpenCode. See [Model freedom](#model-freedom).
+
+If OMO-slim is already installed, the installer backs up the existing global config and replaces the orchestration config with the kit version. Existing `opencode.json` provider settings and your selected model are preserved and merged.
+
+---
+
+## Model freedom
+
+The kit does **not** require OpenCode Go and does **not** pin a model by default.
+
+The default `session` preset:
+
+- leaves `opencode.json` without a `model` field;
+- sets `stripOrchestratorModel: true`;
+- makes the orchestrator and built-in subagents use the model selected in the current OpenCode session.
+
+So the user can pick any provider/model in OpenCode and the orchestration follows it.
+
+The kit also ships an optional `opencode-go` preset with the tested DeepSeek/OpenCode Go models. To switch:
+
+```text
+%USERPROFILE%\.config\opencode\oh-my-opencode-slim.json
+```
+
+```json
+"preset": "opencode-go"
+```
+
+Per-agent overrides are still possible. For example, to give only the oracle a specific model:
+
+```json
+"oracle": {
+  "model": ["your-provider/your-model"],
+  "skills": ["simplify"]
+}
+```
+
+To make an agent follow the session model explicitly, use:
+
+```json
+"oracle": {
+  "inheritModelFrom": "session",
+  "skills": ["simplify"]
+}
+```
+
+> **Observer note:** Observer inherits the session model in the `session` preset. If your model is not multimodal, set a vision-capable model for `observer` or disable it with `"disabled_agents": ["observer"]`.
 
 ---
 
@@ -108,7 +154,7 @@ If the Browser entry is missing after an OpenCode update, fully quit and reopen 
 %USERPROFILE%\.config\opencode\backups\<timestamp>-orchestrator-kit
 ```
 
-- Merges the kit plugin, model and default agent into an existing `opencode.json`.
+- Merges the kit plugin and default agent into an existing `opencode.json`. It does **not** change the model you selected.
 - Writes the OMO-slim configuration, global `AGENTS.md` and orchestrator policy.
 - Installs `plugins\board-guard.js`.
 - Copies the dashboard to `%USERPROFILE%\.config\opencode\agent-board`.
@@ -125,6 +171,7 @@ The installer is safe to re-run. It:
 - stops the local dashboard server first,
 - copies the dashboard into a staging folder and validates it,
 - preserves the existing `guard.log`,
+- preserves your `session`/`opencode-go` preset choice and your selected model,
 - backs up the current config and dashboard,
 - swaps the new files into place,
 - restarts the dashboard and checks `/health`.
@@ -200,12 +247,17 @@ Start it manually:
 
 Fully quit and reopen OpenCode Desktop. Some 2.2.x Desktop builds temporarily lose the Browser launcher; a restart restores it. You can use the desktop `Ajan Panosu` shortcut in the meantime.
 
-### Model not found
+### Model not found / no model selected
 
-Sign in to OpenCode Go, or edit the model IDs in:
+Select a provider and a model in OpenCode first. The kit does not pin a model in the default `session` preset.
 
-- `%USERPROFILE%\.config\opencode\opencode.json`
-- `%USERPROFILE%\.config\opencode\oh-my-opencode-slim.json`
+To use the tested OpenCode Go setup instead, set this in `%USERPROFILE%\.config\opencode\oh-my-opencode-slim.json`:
+
+```json
+"preset": "opencode-go"
+```
+
+Then sign in to OpenCode Go. For per-agent model overrides, edit the `model` or `inheritModelFrom` fields in the same file.
 
 ### Board Guard is not active
 
@@ -281,7 +333,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Türkçe
 
-**Sürüm:** 0.1.5  
+**Sürüm:** 0.2.0  
 **Platform:** Windows 10/11
 
 Bu kit, OpenCode Desktop + OMO-slim + Ajan Panosu + Board Guard kurulumunu tek tıkla yapar.
@@ -293,13 +345,27 @@ OMO-slim güçlü bir orkestrasyon katmanıdır; ancak OpenCode Desktop içinde 
 ### Kurulum sırası
 
 1. OpenCode Desktop 2.x kur.
-2. OpenCode Go hesabına gir.
+2. OpenCode'da istediğin provider/model'i seç. **OpenCode Go şart değil.**
 3. Node.js 22+ kur.
 4. ZIP'i çıkar ve `install.cmd` çalıştır.
 5. OpenCode Desktop'ı tamamen kapatıp yeniden aç.
 6. Paneli aç: `http://127.0.0.1:43124/`
 
 OMO-slim'i ayrıca kurmana gerek yok; kit gerekli config'i yazar ve OpenCode `oh-my-opencode-slim@3.0.7` paketini kendisi yükler.
+
+### Model özgürlüğü
+
+Kit varsayılan olarak **hiçbir model ID'si yazmaz**. `session` preset'i, OpenCode oturumunda seçtiğin modeli orchestrator ve alt ajanlara uygular. `opencode.json` içindeki model ayarına dokunulmaz.
+
+İstersen test edilmiş OpenCode Go preset'ine geçebilirsin:
+
+```json
+"preset": "opencode-go"
+```
+
+Ayar dosyası: `%USERPROFILE%\.config\opencode\oh-my-opencode-slim.json`
+
+Tek bir ajana özel model vermek için `model`, oturum modelini takip etmesi için `inheritModelFrom: "session"` kullanılabilir. Observer görsel model gerektirir; oturum modelin multimodal değilse observer'a ayrı model ver veya `"disabled_agents": ["observer"]` ile kapat.
 
 ### Panel
 
@@ -318,7 +384,7 @@ Sadece projenin `.opencode/plans/current.md` ve `.opencode/plans/boards/*.md` al
 
 - Panel açılmıyorsa: `doctor.cmd`
 - OpenCode'da Browser sekmesi yoksa: Desktop'ı tamamen kapat/aç
-- Model bulunamıyorsa: OpenCode Go girişini kontrol et
+- Model bulunamıyorsa: OpenCode'da önce bir provider/model seç; kit varsayılan olarak model pinlemez. Test edilmiş OpenCode Go setup'ı için `preset` değerini `opencode-go` yap.
 - Alt görev 15 dk+ güncellenmezse panelde `takıldı?` görünür; üst oturumu durdurup OpenCode'u yeniden başlat.
 - Kalıcı sorunda `backgroundJobs.sameProviderPolicy` ile aynı sağlayıcıdaki alt görevler foreground çalıştırılabilir; bu paralelliği azaltır.
 - Log: `%USERPROFILE%\.config\opencode\agent-board\guard.log`

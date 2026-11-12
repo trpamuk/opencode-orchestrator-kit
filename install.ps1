@@ -78,18 +78,13 @@ if (Test-Path $targetConfig) {
     } else {
       $existing | Add-Member -NotePropertyName plugins -NotePropertyValue $newPlugins
     }
-    if ($existing.PSObject.Properties.Name -contains "model") {
-      $existing.model = $template.model
-    } else {
-      $existing | Add-Member -NotePropertyName model -NotePropertyValue $template.model
-    }
     if ($existing.PSObject.Properties.Name -contains "default_agent") {
       $existing.default_agent = $template.default_agent
     } else {
       $existing | Add-Member -NotePropertyName default_agent -NotePropertyValue $template.default_agent
     }
     $existing | ConvertTo-Json -Depth 100 | Set-Content -Path $targetConfig -Encoding UTF8
-    Write-Host "    mevcut config korunarak plugin/model eklendi." -ForegroundColor Green
+    Write-Host "    mevcut config korunarak plugin/default agent eklendi; model degistirilmedi." -ForegroundColor Green
   } catch {
     Write-Host "    Mevcut config JSON olarak okunamadi; yeni config ayri dosyaya yazildi." -ForegroundColor Yellow
     Copy-Item (Join-Path $kitRoot "config\opencode.json") (Join-Path $configDir "opencode.kit.json") -Force
@@ -100,7 +95,25 @@ if (Test-Path $targetConfig) {
 }
 
 Write-Step "OMO-slim, AGENTS.md ve board guard kuruluyor"
-Copy-Item (Join-Path $kitRoot "config\oh-my-opencode-slim.json") (Join-Path $configDir "oh-my-opencode-slim.json") -Force
+$omoTarget = Join-Path $configDir "oh-my-opencode-slim.json"
+$preservedPreset = $null
+if (Test-Path $omoTarget) {
+  try {
+    $existingOmo = Get-Content $omoTarget -Raw | ConvertFrom-Json
+    if ($existingOmo.preset -in @("session", "opencode-go")) {
+      $preservedPreset = $existingOmo.preset
+    }
+  } catch {
+    # Gecersiz mevcut config kit config'i ile degistirilecek.
+  }
+}
+Copy-Item (Join-Path $kitRoot "config\oh-my-opencode-slim.json") $omoTarget -Force
+if ($preservedPreset) {
+  $newOmo = Get-Content $omoTarget -Raw | ConvertFrom-Json
+  $newOmo.preset = $preservedPreset
+  $newOmo | ConvertTo-Json -Depth 100 | Set-Content -Path $omoTarget -Encoding UTF8
+  Write-Host "    mevcut OMO preset korundu: $preservedPreset" -ForegroundColor DarkGray
+}
 Copy-Item (Join-Path $kitRoot "config\AGENTS.md") (Join-Path $configDir "AGENTS.md") -Force
 Copy-Item (Join-Path $kitRoot "config\orchestrator_append.md") (Join-Path $omoDir "orchestrator_append.md") -Force
 Copy-Item (Join-Path $kitRoot "plugins\board-guard.js") (Join-Path $pluginsDir "board-guard.js") -Force
@@ -191,7 +204,7 @@ Write-Host "Kurulum tamamlandi." -ForegroundColor Green
 Write-Host ""
 Write-Host "Sirada:" -ForegroundColor Cyan
 Write-Host "1. OpenCode Desktop'i tamamen kapatip yeniden ac."
-Write-Host "2. OpenCode Go hesabina gir (yoksa OpenCode auth/login)."
+Write-Host "2. OpenCode'da istedigin provider/model'i sec (OpenCode Go sart degil)."
 Write-Host "3. Panel: http://127.0.0.1:43124/"
 Write-Host "4. Side panel: Review pane -> yeni browser sekmesi -> ayni URL."
 Write-Host "5. Sorun olursa: doctor.cmd"

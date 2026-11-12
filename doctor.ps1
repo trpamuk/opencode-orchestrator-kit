@@ -47,6 +47,10 @@ if (Test-Path $omoPath) {
     $omo = Get-Content $omoPath -Raw | ConvertFrom-Json
     Check "Companion kapali" ($omo.companion.enabled -eq $false) ("enabled=" + $omo.companion.enabled)
     Check "OMO-slim schema 3.0.7" ($omo.'$schema' -match '3\.0\.7') $omo.'$schema'
+    Check "OMO preset" ($omo.preset -in @("session", "opencode-go")) ("preset=" + $omo.preset)
+    if ($omo.preset -eq "session") {
+      Check "Model bagimsiz" ($omo.stripOrchestratorModel -eq $true) ("stripOrchestratorModel=" + $omo.stripOrchestratorModel)
+    }
   } catch {
     Check "oh-my-opencode-slim.json parse" $false $_.Exception.Message
   }

@@ -1,7 +1,46 @@
 {
   "$schema": "https://unpkg.com/oh-my-opencode-slim@3.0.7/oh-my-opencode-slim.schema.json",
-  "preset": "opencode-go",
+  "preset": "session",
+  "stripOrchestratorModel": true,
   "presets": {
+    "session": {
+      "orchestrator": {
+        "inheritModelFrom": "session",
+        "skills": [
+          "*"
+        ]
+      },
+      "oracle": {
+        "inheritModelFrom": "session",
+        "skills": [
+          "simplify"
+        ]
+      },
+      "explorer": {
+        "inheritModelFrom": "session",
+        "skills": []
+      },
+      "designer": {
+        "inheritModelFrom": "session",
+        "skills": []
+      },
+      "fixer": {
+        "inheritModelFrom": "session",
+        "skills": []
+      },
+      "observer": {
+        "inheritModelFrom": "session",
+        "skills": []
+      },
+      "marketplace": {
+        "agents_add": [
+          "capybearista/arbiter",
+          "alvin/paladin",
+          "capybearista/proctor",
+          "capybearista/hunter"
+        ]
+      }
+    },
     "opencode-go": {
       "orchestrator": {
         "model": [
