@@ -97,6 +97,11 @@ uninstall.cmd
 
 Startup/masaustu kisayollarini kaldirir ve panel sunucusunu durdurur. Config dosyalari ve `agent-board` klasoru korunur.
 
+## Katki ve guvenlik
+
+- Katki rehberi: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Guvenlik politikasi: [SECURITY.md](SECURITY.md)
+
 ## Notlar
 
 - Bu kit **API key icermez**. Provider girisini kullanici kendi yapar.

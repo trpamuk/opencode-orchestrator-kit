@@ -26,7 +26,7 @@ OpenCode 2.x için canlı, yerel ajan ve görev panosu.
 
 ## Board guard
 
-`C:\Users\tahar\.config\opencode\plugins\board-guard.js` global plugin'i:
+`%USERPROFILE%\.config\opencode\plugins\board-guard.js` global plugin'i:
 
 - board yazımını yalnızca projenin `.opencode/plans/current.md` veya `.opencode/plans/boards/*.md` alanına izin verir,
 - başka proje/worktree board'larını reddeder,
@@ -37,7 +37,7 @@ Plugin değişikliği OpenCode yeniden başlatıldığında etkinleşir.
 
 ## Desktop tarayıcı
 
-- Panel şu an OpenCode Review pane'inde açık bir sekmede çalışır.
+- Panel OpenCode Review pane'inde açık bir sekmede çalışır.
 - OpenCode'un yerleşik tarayıcı sekmesini dışarıdan, uygulama açılırken otomatik açan resmi bir plugin/API yoktur; browser tool yalnızca ajan oturumuna açıktır.
 - Desktop native sekme geri yüklemesi panel sekmesini geri getirirse otomatik görünür. Gelmezse masaüstündeki `Ajan Panosu.url` kısayolu veya `http://127.0.0.1:43124` kullanılabilir.
 - Tamamen içeride ve garanti otomatik bir yan panel için OCDX desktop-extension yolu ayrı bir OpenCode kanalı gerektirir; mevcut oturum/config ile drop-in değildir.
