@@ -1,0 +1,18 @@
+# Local install artifacts
+dist/
+*.zip
+*.7z
+
+# Secrets and local state
+service.json
+.env
+.env.*
+!.env.example
+backups/
+guard.log
+*.log
+
+# Dependencies / caches
+node_modules/
+.pnpm-store/
+.cache/

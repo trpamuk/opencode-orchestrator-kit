@@ -1,0 +1,111 @@
+{
+  "$schema": "https://unpkg.com/oh-my-opencode-slim@3.0.7/oh-my-opencode-slim.schema.json",
+  "preset": "opencode-go",
+  "presets": {
+    "opencode-go": {
+      "orchestrator": {
+        "model": [
+          {
+            "id": "opencode-go/deepseek-v4.1-flash",
+            "variant": "high"
+          },
+          {
+            "id": "opencode/deepseek-v4.1-flash-free",
+            "variant": "high"
+          }
+        ],
+        "skills": [
+          "*"
+        ]
+      },
+      "oracle": {
+        "model": [
+          {
+            "id": "opencode-go/deepseek-v4.1-flash",
+            "variant": "max"
+          },
+          {
+            "id": "opencode/deepseek-v4.1-flash-free",
+            "variant": "high"
+          }
+        ],
+        "skills": [
+          "simplify"
+        ]
+      },
+      "explorer": {
+        "model": [
+          {
+            "id": "opencode-go/deepseek-v4.1-flash",
+            "variant": "high"
+          },
+          {
+            "id": "opencode/deepseek-v4.1-flash-free",
+            "variant": "high"
+          }
+        ],
+        "skills": []
+      },
+      "designer": {
+        "model": [
+          {
+            "id": "opencode-go/deepseek-v4.1-flash",
+            "variant": "high"
+          },
+          {
+            "id": "opencode/deepseek-v4.1-flash-free",
+            "variant": "high"
+          }
+        ],
+        "skills": []
+      },
+      "fixer": {
+        "model": [
+          {
+            "id": "opencode-go/deepseek-v4.1-flash",
+            "variant": "high"
+          },
+          {
+            "id": "opencode/deepseek-v4.1-flash-free",
+            "variant": "high"
+          }
+        ],
+        "skills": []
+      },
+      "observer": {
+        "model": [
+          {
+            "id": "opencode-go/muse-spark-1.3-contributor"
+          },
+          {
+            "id": "opencode/mimo-v2.6-flash-free"
+          }
+        ],
+        "skills": []
+      },
+      "marketplace": {
+        "agents_add": [
+          "capybearista/arbiter",
+          "alvin/paladin",
+          "capybearista/proctor",
+          "capybearista/hunter"
+        ]
+      }
+    }
+  },
+  "disabled_agents": [],
+  "autoUpdate": false,
+  "multiplexer": {
+    "type": "none"
+  },
+  "backgroundJobs": {
+    "concurrency": {
+      "defaultConcurrency": 2
+    }
+  },
+  "companion": {
+    "enabled": false,
+    "position": "bottom-right",
+    "size": "medium"
+  }
+}

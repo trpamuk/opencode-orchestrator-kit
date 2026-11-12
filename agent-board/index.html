@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ajan Panosu</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg:#0b0b0d; --panel:#121216; --panel2:#17171c; --line:#2a2a31;
+    --text:#ececf1; --muted:#8b8b96; --accent:#f0c674; --blue:#7dd3fc;
+    --green:#4ade80; --red:#fb7185; --orange:#f59e0b; --purple:#c084fc;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:13px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+  header { position:sticky; top:0; z-index:2; display:flex; align-items:center; gap:10px; padding:11px 16px; background:rgba(11,11,13,.95); border-bottom:1px solid var(--line); backdrop-filter:blur(10px); }
+  h1 { font-size:14px; margin:0; letter-spacing:.04em; }
+  .project-select { max-width:260px; background:#17171c; color:var(--text); border:1px solid #3f3f46; border-radius:6px; padding:3px 7px; font:11px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+  .dot { width:8px; height:8px; border-radius:50%; background:var(--green); box-shadow:0 0 10px var(--green); }
+  .muted { color:var(--muted); }
+  .spacer { flex:1; }
+  main { display:grid; grid-template-columns:minmax(460px,1.12fr) minmax(360px,.88fr); min-height:calc(100vh - 54px); }
+  #activePane, #boardPane { padding:16px 18px 60px; overflow:auto; max-height:calc(100vh - 54px); }
+  #boardPane { border-left:1px solid var(--line); background:var(--panel); }
+  h2 { font-size:11px; color:var(--accent); letter-spacing:.09em; text-transform:uppercase; margin:0 0 10px; }
+  .section-head { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+  .section-head h2 { margin:0; }
+  .filters { display:flex; gap:4px; margin-left:auto; }
+  .filter { background:transparent; border:1px solid var(--line); color:var(--muted); border-radius:99px; padding:2px 8px; font:10px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; cursor:pointer; }
+  .filter.active { color:var(--text); border-color:#52525b; background:#1f1f27; }
+  .summary { color:var(--muted); font-size:10px; margin:0 0 10px; }
+  .group { margin-top:16px; }
+  .group-head { display:flex; align-items:baseline; gap:8px; margin:0 0 7px; padding-bottom:5px; border-bottom:1px solid var(--line); }
+  .group-name { color:var(--text); font-size:12px; font-weight:700; }
+  .group-path { color:var(--muted); font-size:9px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .group-count { margin-left:auto; color:var(--muted); font-size:9px; white-space:nowrap; }
+  .agent { display:grid; grid-template-columns:48px minmax(0,1fr); gap:10px; border:1px solid var(--line); background:var(--panel); border-radius:10px; padding:10px 11px; margin:7px 0; }
+  .agent.running { border-color:#14532d; }
+  .agent.waiting { border-color:#3f3f46; }
+  .avatar { width:44px; height:44px; border-radius:50%; object-fit:cover; border:1px solid #3f3f46; background:#1f1f27; }
+  .agent-body { min-width:0; }
+  .row { display:flex; align-items:center; gap:7px; min-width:0; }
+  .agent-name { font-weight:700; color:var(--text); white-space:nowrap; }
+  .agent-title { color:#d7d7de; margin-top:3px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .agent-meta { color:var(--muted); font-size:10px; margin-top:3px; display:flex; flex-wrap:wrap; gap:7px; }
+  .agent-metrics { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  .metric { border:1px solid #2f2f37; border-radius:5px; padding:1px 6px; color:#c7c7d1; font-size:10px; white-space:nowrap; }
+  .metric.cost { color:var(--accent); border-color:#4a3b1d; }
+  .metric.tokens { color:var(--blue); border-color:#164e63; }
+  .badge { font-size:10px; padding:1px 6px; border-radius:99px; border:1px solid var(--line); color:var(--muted); white-space:nowrap; }
+  .badge.running { color:var(--green); border-color:#14532d; background:#052e16; }
+  .badge.waiting { color:var(--orange); border-color:#78350f; background:#1c1002; }
+  .badge.done { color:var(--blue); border-color:#164e63; background:#082f49; }
+  .badge.failed { color:var(--red); border-color:#7f1d1d; background:#2a0a0a; }
+  .badge.idle { color:var(--muted); }
+  .pill { font-size:9px; border:1px solid var(--line); border-radius:99px; padding:1px 5px; color:var(--muted); white-space:nowrap; }
+  .role { color:#a1a1aa; font-size:10px; margin-top:5px; }
+  .parent { color:#71717a; font-size:9px; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .empty { color:var(--muted); padding:20px 0; }
+  .legend { margin-top:22px; border-top:1px solid var(--line); padding-top:12px; }
+  .legend-row { display:flex; gap:8px; padding:4px 0; font-size:11px; align-items:center; }
+  .legend-avatar { width:26px; height:26px; border-radius:50%; object-fit:cover; border:1px solid #3f3f46; background:#1f1f27; }
+  .legend-id { color:var(--accent); min-width:104px; }
+  .legend-desc { color:var(--muted); }
+  .board-card { border:1px solid var(--line); background:var(--panel2); border-radius:10px; padding:10px 11px; margin:0 0 12px; }
+  .board-head { display:flex; align-items:baseline; gap:7px; min-width:0; }
+  .board-project { color:var(--text); font-weight:700; font-size:12px; }
+  .board-kind { font-size:9px; border:1px solid #4a3b1d; border-radius:99px; padding:1px 6px; color:var(--accent); white-space:nowrap; }
+  .board-path { color:var(--muted); font-size:9px; margin:2px 0 7px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .board-feature { color:#c7c7d1; font-size:10px; margin:0 0 7px; }
+  table { width:100%; border-collapse:collapse; font-size:11px; }
+  th { text-align:left; color:var(--muted); font-weight:500; font-size:10px; padding:0 6px 7px 0; border-bottom:1px solid var(--line); }
+  td { padding:7px 6px 7px 0; border-bottom:1px solid #202027; vertical-align:top; }
+  td.task { color:#d7d7de; }
+  td.agent { color:var(--accent); white-space:nowrap; }
+  .status { white-space:nowrap; font-size:10px; }
+  .status.running { color:var(--green); }
+  .status.done { color:var(--blue); }
+  .status.review { color:var(--orange); }
+  .status.blocked { color:var(--red); }
+  @media (max-width:1100px) { main { grid-template-columns:1fr; } #boardPane { border-left:0; border-top:1px solid var(--line); max-height:none; } #activePane { max-height:none; } }
+</style>
+</head>
+<body>
+<header>
+  <span class="dot"></span>
+  <h1>AJAN PANOSU</h1>
+  <select class="project-select" id="projectSelect" title="Proje seç"></select>
+  <span class="muted" id="status">bağlanıyor...</span>
+  <span class="spacer"></span>
+  <span class="muted" id="clock"></span>
+</header>
+<main>
+  <section id="activePane">
+    <div class="section-head">
+      <h2>Ajanlar</h2>
+      <div class="filters">
+        <button class="filter active" data-filter="active">Aktif</button>
+        <button class="filter" data-filter="hour">Son 1 saat</button>
+        <button class="filter" data-filter="all">Tümü</button>
+      </div>
+    </div>
+    <div class="summary" id="summary"></div>
+    <div id="active"><div class="empty">yükleniyor...</div></div>
+    <div class="legend">
+      <h2>Ajan Rehberi</h2>
+      <div id="legend"></div>
+    </div>
+  </section>
+  <section id="boardPane">
+    <h2>Görevler</h2>
+    <div id="boards"><div class="empty">board yükleniyor...</div></div>
+  </section>
+</main>
+<script>
+const activeEl = document.getElementById("active");
+const boardsEl = document.getElementById("boards");
+const legendEl = document.getElementById("legend");
+const statusEl = document.getElementById("status");
+const clockEl = document.getElementById("clock");
+const summaryEl = document.getElementById("summary");
+const projectSelect = document.getElementById("projectSelect");
+let state = { sessions: [], active: {}, agents: [], boards: [], projects: [] };
+let filterMode = "active";
+let projectParam = new URLSearchParams(location.search).get("project") || "";
+
+const roleFallback = {
+  orchestrator: "Planlar, dağıtır, sonuçları birleştirir",
+  explorer: "Kod tabanını keşfeder, araştırma yapar",
+  fixer: "Kod yazar ve düzeltir",
+  designer: "UI/UX tasarlar ve uygular",
+  oracle: "Strateji, mimari ve zor kararlar",
+  observer: "Görsel/PDF/ses/video analizi",
+  arbiter: "Merge öncesi kod incelemesi",
+  paladin: "Güvenlik ve risk incelemesi",
+  proctor: "Test yeterliliği ve regresyon riski",
+  hunter: "Hata yolları ve sessiz failure denetimi",
+  build: "Sohbet/komut oturumu",
+  plan: "Planlama oturumu"
+};
+
+function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function agentInfo(id){return state.agents.find(a=>a.id===id) || {};}
+function avatarFor(id){
+  const known=["orchestrator","explorer","fixer","designer","oracle","observer","arbiter","paladin","proctor","hunter"];
+  return known.includes(id) ? "/assets/agents/thumb/"+id+".jpg" : "/assets/agents/unknown.svg";
+}
+function modelText(s){if(!s.model) return "session model"; return (s.model.providerID||"")+"/"+(s.model.id||"")+(s.model.variant?"#"+s.model.variant:"");}
+function shortId(id){return id ? id.replace(/^ses_/,"").slice(0,8) : "";}
+function elapsed(start){if(!start) return ""; const sec=Math.max(0,Math.floor((Date.now()-start)/1000)); if(sec<60) return sec+"sn"; const min=Math.floor(sec/60); if(min<60) return min+"dk"; const hr=Math.floor(min/60); if(hr<24) return hr+"sa "+(min%60)+"dk"; return Math.floor(hr/24)+"g "+(hr%24)+"sa";}
+function duration(s){const start=s.time?.created; if(!start) return ""; const end=s.time?.updated||Date.now(); return elapsed(start)+(Date.now()-end<120000?"+":"");}
+function ago(start){if(!start) return ""; return elapsed(start)+" önce";}
+function fmtTokens(n){n=Number(n)||0; if(n>=1e9) return (n/1e9).toFixed(2)+"B"; if(n>=1e6) return (n/1e6).toFixed(1)+"M"; if(n>=1e3) return Math.round(n/1e3)+"K"; return String(n);}
+function fmtCost(n){n=Number(n)||0; if(n>=0.01) return "$"+n.toFixed(2); if(n>0) return "$"+n.toFixed(4); return "$0";}
+function tokenSummary(s){
+  const t=s.tokens||{}; const input=t.input||0; const output=(t.output||0)+(t.reasoning||0); const cache=t.cache?.read||0;
+  return {text:fmtTokens(input)+" in · "+fmtTokens(output)+" out", title:"cache read: "+fmtTokens(cache)};
+}
+function statusFor(s){
+  const activeIds=new Set(Object.keys(state.active||{}));
+  const fresh=s.time?.updated && (Date.now()-s.time.updated)<120000;
+  if(activeIds.has(s.id) && fresh) return {label:"çalışıyor",cls:"running"};
+  if(activeIds.has(s.id)) return {label:"bekliyor",cls:"waiting"};
+  if(s.outcome==="failed") return {label:"hata",cls:"failed"};
+  if(s.outcome==="succeeded") return {label:"bitti",cls:"done"};
+  return {label:"geçmiş",cls:"idle"};
+}
+function visibleSessions(){
+  const all=(state.sessions||[]).filter(s=>s.agent && s.time?.created);
+  if(filterMode==="all") return all;
+  const activeIds=new Set(Object.keys(state.active||{}));
+  const windowMs=filterMode==="hour" ? 3600000 : 120000;
+  return all.filter(s=>activeIds.has(s.id) || (s.time?.updated && (Date.now()-s.time.updated)<windowMs));
+}
+function groupSessions(list){
+  const groups=new Map();
+  for(const s of list){
+    const dir=s.location?.directory||"bilinmeyen";
+    if(!groups.has(dir)) groups.set(dir,[]);
+    groups.get(dir).push(s);
+  }
+  return [...groups.entries()].map(([dir,sessions])=>{
+    sessions.sort((a,b)=>{
+      const aa=statusFor(a).cls==="running"?2:statusFor(a).cls==="waiting"?1:0;
+      const bb=statusFor(b).cls==="running"?2:statusFor(b).cls==="waiting"?1:0;
+      return bb-aa || (b.time?.updated||0)-(a.time?.updated||0);
+    });
+    return {dir,sessions,updated:Math.max(...sessions.map(s=>s.time?.updated||0))};
+  }).sort((a,b)=>b.updated-a.updated);
+}
+function parentTitle(s){
+  if(!s.parentID) return "";
+  const parent=(state.sessions||[]).find(p=>p.id===s.parentID);
+  return parent ? parent.title||parent.id : s.parentID;
+}
+function renderProjectSelect(){
+  const projects=(state.projects||[]).filter(p=>p.boardCount>0||p.activeCount>0||p.dir===projectParam);
+  const signature=projects.map(p=>p.dir).join("|");
+  if(projectSelect.dataset.signature!==signature){
+    projectSelect.dataset.signature=signature;
+    projectSelect.innerHTML=projects.map(p=>{
+      const label=p.name+(p.kind==="worktree"?" · worktree":"");
+      return '<option value="'+esc(p.dir)+'">'+esc(label)+'</option>';
+    }).join("");
+  }
+  if(state.project && projectParam!==state.project){
+    projectParam=state.project;
+    const url=new URL(location.href);
+    url.searchParams.set("project",projectParam);
+    history.replaceState(null,"",url);
+  }
+  if(projectParam) projectSelect.value=projectParam;
+  const selected=projects.find(p=>p.dir===projectParam);
+  document.title="Ajan Panosu"+(selected?" · "+selected.name:"");
+}
+function renderActive(){
+  const list=visibleSessions();
+  if(!list.length){activeEl.innerHTML='<div class="empty">Bu filtrede oturum yok.</div>';return;}
+  const groups=groupSessions(list);
+  activeEl.innerHTML=groups.map(g=>{
+    const name=g.dir.split(/[\\/]/).filter(Boolean).pop()||g.dir;
+    const cards=g.sessions.map(s=>{
+      const a=agentInfo(s.agent); const id=s.agent||"?"; const name2=a.name||id;
+      const st=statusFor(s); const tok=tokenSummary(s); const pt=parentTitle(s);
+      return '<article class="agent '+st.cls+'">'+
+        '<img class="avatar" src="'+esc(avatarFor(id))+'" alt="'+esc(name2)+'" />'+
+        '<div class="agent-body">'+
+          '<div class="row"><span class="agent-name">'+esc(name2)+'</span><span class="badge '+st.cls+'">'+esc(st.label)+'</span><span class="pill">#'+esc(id)+'</span><span class="spacer"></span><span class="metric cost">'+esc(fmtCost(s.cost))+'</span></div>'+
+          '<div class="agent-title" title="'+esc(s.title||s.id)+'">'+esc(s.title||s.id)+'</div>'+
+          '<div class="agent-meta"><span>'+esc(modelText(s))+'</span><span>'+esc(s.parentID?"alt oturum":"ana oturum")+'</span><span>oturum #'+esc(shortId(s.id))+'</span></div>'+
+          (pt?'<div class="parent">üst: '+esc(pt)+'</div>':'')+
+          '<div class="agent-metrics"><span class="metric">süre '+esc(duration(s))+'</span><span class="metric">son '+esc(ago(s.time?.updated))+'</span><span class="metric tokens" title="'+esc(tok.title)+'">'+esc(tok.text)+'</span></div>'+
+          '<div class="role">'+esc(roleFallback[id]||a.description||"")+'</div>'+
+        '</div></article>';
+    }).join("");
+    return '<div class="group"><div class="group-head"><span class="group-name">'+esc(name)+'</span><span class="group-path" title="'+esc(g.dir)+'">'+esc(g.dir)+'</span><span class="group-count">'+g.sessions.length+' oturum</span></div>'+cards+'</div>';
+  }).join("");
+}
+function parseBoard(text){
+  if(!text) return [];
+  const lines=text.split(/\r?\n/).filter(l=>l.trim().startsWith("|"));
+  if(lines.length<2) return [];
+  const cells=l=>l.trim().replace(/^\||\|$/g,"").split("|").map(x=>x.trim());
+  const header=cells(lines[0]);
+  return lines.slice(2).map(l=>{const c=cells(l); const row={}; header.forEach((h,i)=>row[h]=c[i]??""); return row;}).filter(r=>Object.values(r).some(Boolean));
+}
+function boardTable(board){
+  const rows=parseBoard(board.text);
+  if(!rows.length) return '<pre style="white-space:pre-wrap;color:#a1a1aa;font:11px ui-monospace">'+esc(board.text)+'</pre>';
+  const keys=Object.keys(rows[0]);
+  const idKey=keys.find(k=>/^id$/i.test(k))||keys[0];
+  const taskKey=keys.find(k=>/görev|task/i.test(k))||keys[1];
+  const agentKey=keys.find(k=>/ajan|agent|owner/i.test(k))||keys[2];
+  const statusKey=keys.find(k=>/durum|status/i.test(k))||keys[3];
+  const worktreeKey=keys.find(k=>/worktree|branch/i.test(k));
+  return '<table><thead><tr><th>ID</th><th>Görev</th><th>Ajan</th><th>Durum</th><th>Branch</th></tr></thead><tbody>'+
+    rows.map(r=>{
+      const st=(r[statusKey]||"").toLowerCase();
+      const cls=st.includes("çalış")?"running":st.includes("bitti")||st.includes("birleş")?"done":st.includes("review")||st.includes("incele")?"review":st.includes("engel")?"blocked":"";
+      return '<tr><td>'+esc(r[idKey])+'</td><td class="task">'+esc(r[taskKey])+'</td><td class="agent">'+esc(r[agentKey])+'</td><td class="status '+cls+'">'+esc(r[statusKey])+'</td><td class="muted">'+esc(worktreeKey?r[worktreeKey]:"")+'</td></tr>';
+    }).join("")+'</tbody></table>';
+}
+function renderBoards(){
+  const all=state.boards||[];
+  const featureBoards=all.filter(board=>!board.legacy || /^#\s*Güncel Görevler/m.test(board.text||""));
+  const boards=(featureBoards.length?featureBoards:all).slice().sort((a,b)=>{
+    const aa=a.legacy?1:0, bb=b.legacy?1:0;
+    return aa-bb || (b.mtime||0)-(a.mtime||0);
+  });
+  if(!boards.length){boardsEl.innerHTML='<div class="empty">Henüz board bulunamadı.</div>';return;}
+  boardsEl.innerHTML=boards.map(board=>{
+    const feature=(board.text||"").match(/\*\*Özellik:\*\*\s*(.+)/)?.[1]||"";
+    const boardName=board.legacy?"current":(board.boardId||"board");
+    return '<section class="board-card"><div class="board-head"><span class="board-project">'+esc(board.project||"?")+'</span><span class="board-kind">'+esc(board.kind==="worktree"?"worktree":"ana proje")+'</span><span class="pill">'+esc(boardName)+'</span></div>'+
+      '<div class="board-path" title="'+esc(board.path||"")+'">'+esc(board.path||"")+'</div>'+
+      (feature?'<div class="board-feature">'+esc(feature)+'</div>':'')+
+      boardTable(board)+'</section>';
+  }).join("");
+}
+function renderLegend(){
+  const wanted=["orchestrator","explorer","fixer","designer","oracle","observer","arbiter","paladin","proctor","hunter","build","plan"];
+  legendEl.innerHTML=wanted.map(id=>{
+    const a=agentInfo(id); const name=a.name||id; const desc=roleFallback[id]||a.description||"";
+    return '<div class="legend-row"><img class="legend-avatar" src="'+esc(avatarFor(id))+'" alt="'+esc(name)+'" /><span class="legend-id">'+esc(name)+' <span class="pill">#'+esc(id)+'</span></span><span class="legend-desc">'+esc(desc)+'</span></div>';
+  }).join("");
+}
+function renderSummary(){
+  const list=visibleSessions();
+  let input=0, output=0, cost=0;
+  for(const s of list){const t=s.tokens||{}; input+=t.input||0; output+=(t.output||0)+(t.reasoning||0); cost+=Number(s.cost)||0;}
+  summaryEl.textContent="Görünen "+list.length+" oturum · toplam "+fmtTokens(input)+" in · "+fmtTokens(output)+" out · "+fmtCost(cost);
+}
+async function refresh(){
+  const activeScroll=activeEl.parentElement?.scrollTop||0;
+  const boardScroll=boardsEl.parentElement?.scrollTop||0;
+  try {
+    const query=projectParam?"?project="+encodeURIComponent(projectParam):"";
+    const r=await fetch("/api/state"+query); if(!r.ok) throw new Error("HTTP "+r.status);
+    state=await r.json();
+    renderProjectSelect();
+    const list=visibleSessions();
+    const running=list.filter(s=>statusFor(s).cls==="running").length;
+    const waiting=list.filter(s=>statusFor(s).cls==="waiting").length;
+    statusEl.textContent=running+" çalışıyor"+(waiting?" · "+waiting+" bekliyor":"")+" · "+list.length+" oturum";
+    clockEl.textContent=new Date().toLocaleTimeString("tr-TR");
+    renderActive(); renderBoards(); renderLegend(); renderSummary();
+    if(activeEl.parentElement) activeEl.parentElement.scrollTop=activeScroll;
+    if(boardsEl.parentElement) boardsEl.parentElement.scrollTop=boardScroll;
+  } catch(e) {
+    statusEl.textContent="bağlantı yok";
+    activeEl.innerHTML='<div class="empty">'+esc(e.message)+'</div>';
+  }
+}
+projectSelect.addEventListener("change",()=>{
+  projectParam=projectSelect.value;
+  const url=new URL(location.href);
+  if(projectParam) url.searchParams.set("project",projectParam); else url.searchParams.delete("project");
+  history.replaceState(null,"",url);
+  refresh();
+});
+document.querySelectorAll(".filter").forEach(button=>{
+  button.addEventListener("click",()=>{
+    filterMode=button.dataset.filter;
+    document.querySelectorAll(".filter").forEach(b=>b.classList.toggle("active",b===button));
+    refresh();
+  });
+});
+refresh();
+setInterval(refresh, 1200);
+</script>
+</body>
+</html>
