@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.2 - 2026-11-13
+
+- Added opt-in auto-retry after auto-stop: one retry prompt 30 seconds later, once per stuck session
+
 ## 0.4.1 - 2026-11-13
 
 - Session detail now fetches child sessions directly from OpenCode, so the lineage tree is complete even when the project session list is truncated

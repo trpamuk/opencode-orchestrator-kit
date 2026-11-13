@@ -1,6 +1,6 @@
 # OpenCode Orchestrator Kit
 
-**Version:** 0.4.1  
+**Version:** 0.4.2  
 **Platform:** Windows 10/11, macOS/Linux (experimental)  
 **Status:** early public preview
 
@@ -221,7 +221,7 @@ It shows:
 - a **Durdur** button on stuck cards; it asks for confirmation and interrupts only that session's current run;
 - a **Modeller** button for per-agent model profiles, fallback chains, preset switching, model testing and per-project profiles;
 - a **Detay** button with live refresh, tool filter, copy error, lineage tree and retry;
-- a **Ayarlar** dialog for stuck threshold, opt-in auto-stop, Web Notifications and diagnostic download;
+- a **Ayarlar** dialog for stuck threshold, opt-in auto-stop, opt-in auto-retry, Web Notifications and diagnostic download;
 - an **Analitik** view with sessions, success/fail counts, average duration, tokens, cost and stuck tasks per agent;
 - a **Guard** view for the Board Guard log;
 - an **Arşivle** button on active boards;
@@ -363,7 +363,7 @@ The dashboard checks the latest GitHub release once an hour. If a newer release 
 
 ### Notifications and auto-stop
 
-Open **Ayarlar** and click **Bildirim izni**. Web Notifications are used for stuck tasks and failed/interrupted sessions. **Otomatik durdur** is opt-in and only triggers after the stuck threshold plus five minutes. It calls the same guarded interrupt endpoint as the **Durdur** button.
+Open **Ayarlar** and click **Bildirim izni**. Web Notifications are used for stuck tasks and failed/interrupted sessions. **Otomatik durdur** is opt-in and only triggers after the stuck threshold plus five minutes. It calls the same guarded interrupt endpoint as the **Durdur** button. **Otomatik yeniden dene** is also opt-in; after an auto-stop it sends one retry prompt 30 seconds later, once per stuck session.
 
 ### Per-project profile
 
@@ -424,7 +424,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Türkçe
 
-**Sürüm:** 0.4.1  
+**Sürüm:** 0.4.2  
 **Platform:** Windows 10/11, macOS/Linux (deneysel)
 
 Bu kit, OpenCode Desktop + OMO-slim + Ajan Panosu + Board Guard kurulumunu tek tıkla yapar.
@@ -472,7 +472,7 @@ Tek bir ajana özel model vermek için `model`, oturum modelini takip etmesi iç
 - Takılı kartlarda **Durdur** butonu vardır; onay ister ve sadece o oturumun mevcut çalışmasını keser. Dosya/board değiştirmez; tekrar çalıştırmadan önce `git status` kontrol edilmeli.
 - **Modeller** butonu ile orchestrator, oracle, explorer, designer, fixer ve observer için oturum modeli, belirli model, yedek model, variant ve model testi kullanılabilir.
 - **Detay** butonu son tool çağrılarını, hataları, modeli, token/maliyeti, oturum ağacını gösterir; canlı yenileme, tool filtresi, hata kopyalama ve **Yeniden dene** vardır.
-- **Ayarlar** ile takılma eşiği, opt-in otomatik durdurma, Web Bildirimleri ve diagnostic indirme ayarlanır.
+- **Ayarlar** ile takılma eşiği, opt-in otomatik durdurma, opt-in otomatik yeniden deneme (30 sn sonra 1 kez), Web Bildirimleri ve diagnostic indirme ayarlanır.
 - **Analitik** agent bazlı başarı/hata/süre/maliyet/stuck tablosu gösterir.
 - **Guard** Board Guard log'unu, **Arşivle** aktif board'u arşive taşımayı sağlar.
 - Sürüm rozeti ve GitHub güncelleme kontrolü vardır.
@@ -490,7 +490,7 @@ Sadece projenin `.opencode/plans/current.md` ve `.opencode/plans/boards/*.md` al
 - Alt görev 15 dk+ güncellenmezse panelde `takıldı?` görünür; üst oturumu durdurup OpenCode'u yeniden başlat.
 - Kalıcı sorunda `backgroundJobs.sameProviderPolicy` ile aynı sağlayıcıdaki alt görevler foreground çalıştırılabilir; bu paralelliği azaltır.
 - Güncelleme rozeti çıkarsa release sayfasını aç; `install.cmd` güvenle tekrar çalıştırılabilir.
-- Bildirimler için **Ayarlar → Bildirim izni**; otomatik durdurma opt-in'dir ve eşik + 5 dk sonra çalışır.
+- Bildirimler için **Ayarlar → Bildirim izni**; otomatik durdurma opt-in'dir ve eşik + 5 dk sonra çalışır. Otomatik yeniden deneme de opt-in'dir; otomatik durdurmadan 30 sn sonra oturum başına 1 kez çalışır.
 - Proje bazlı profil sorunluysa **Modeller → Bu proje için → Proje profilini sıfırla**.
 - Diagnostic ZIP: `%USERPROFILE%\.config\opencode\agent-board\diagnostic.cmd`
 - Panel write endpoint'leri `X-Panel-Token` ister; panel sayfasını yenilemediysen işlem 403 dönebilir.

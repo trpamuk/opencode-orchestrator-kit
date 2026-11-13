@@ -243,6 +243,10 @@
       <div><input type="checkbox" id="autoStopToggle" /> <span class="muted">Takılan görevi eşik + 5 dk sonra otomatik durdurur. Varsayılan kapalı.</span></div>
     </div>
     <div class="setting-row">
+      <label for="autoRetryToggle">Otomatik yeniden dene</label>
+      <div><input type="checkbox" id="autoRetryToggle" /> <span class="muted">Otomatik durdurmadan 30 sn sonra 1 kez yeniden dener. Varsayılan kapalı.</span></div>
+    </div>
+    <div class="setting-row">
       <label>Bildirimler</label>
       <div class="row"><button class="top-btn" id="notifyBtn">Bildirim izni</button><span class="muted" id="notifyStatus"></span></div>
     </div>
@@ -299,6 +303,7 @@ const settingsDialog = document.getElementById("settingsDialog");
 const settingsClose = document.getElementById("settingsClose");
 const stuckSelect = document.getElementById("stuckSelect");
 const autoStopToggle = document.getElementById("autoStopToggle");
+const autoRetryToggle = document.getElementById("autoRetryToggle");
 const notifyBtn = document.getElementById("notifyBtn");
 const notifyStatus = document.getElementById("notifyStatus");
 const diagnosticBtn = document.getElementById("diagnosticBtn");
@@ -326,7 +331,7 @@ let activePreset = "";
 let detailSessionID = "";
 let detailTimer = null;
 let updateFetchedAt = 0;
-const notifyState = { first: true, notified: new Set(), autoStopped: new Set() };
+const notifyState = { first: true, notified: new Set(), autoStopped: new Set(), autoRetried: new Set() };
 
 function loadSettings() {
   let saved = {};
@@ -339,6 +344,7 @@ function loadSettings() {
   return {
     stuckMs: [600000, 900000, 1800000, 3600000].includes(stuck) ? stuck : 900000,
     autoStop: saved.autoStop === true,
+    autoRetry: saved.autoRetry === true,
     notifications: saved.notifications === true,
   };
 }
@@ -753,6 +759,7 @@ async function openGuard(){
 function openSettings(){
   stuckSelect.value=String(settings.stuckMs);
   autoStopToggle.checked=settings.autoStop;
+  autoRetryToggle.checked=settings.autoRetry;
   notifyStatus.textContent=settings.notifications?"açık":"kapalı";
   if(!settingsDialog.open) settingsDialog.showModal();
 }
@@ -855,6 +862,17 @@ function maybeNotifyAndAutoStop(){
         if(canNotify){
           try { new Notification("Otomatik durduruldu",{body:(task.description||task.tool)+" · "+task.sessionTitle}); } catch {}
         }
+        if(settings.autoRetry && task.description && !notifyState.autoRetried.has(task.sessionID)){
+          setTimeout(()=>{
+            if(!settings.autoRetry || notifyState.autoRetried.has(task.sessionID)) return;
+            notifyState.autoRetried.add(task.sessionID);
+            panelPost("/api/retry",{sessionID:task.sessionID,description:task.description}).then(()=>{
+              if(canNotify){
+                try { new Notification("Otomatik yeniden denendi",{body:task.description+" · "+task.sessionTitle}); } catch {}
+              }
+            }).catch(()=>{});
+          },30000);
+        }
       }).catch(()=>{});
     }
   }
@@ -872,6 +890,11 @@ function maybeNotifyAndAutoStop(){
   for(const sessionID of [...notifyState.autoStopped]){
     if(!(state.tasks||[]).some(task=>task.sessionID===sessionID && task.stuck)){
       notifyState.autoStopped.delete(sessionID);
+    }
+  }
+  for(const sessionID of [...notifyState.autoRetried]){
+    if(!(state.tasks||[]).some(task=>task.sessionID===sessionID && task.stuck)){
+      notifyState.autoRetried.delete(sessionID);
     }
   }
 }
@@ -1059,6 +1082,10 @@ stuckSelect.addEventListener("change",()=>{
 });
 autoStopToggle.addEventListener("change",()=>{
   settings.autoStop=autoStopToggle.checked;
+  saveSettings();
+});
+autoRetryToggle.addEventListener("change",()=>{
+  settings.autoRetry=autoRetryToggle.checked;
   saveSettings();
 });
 notifyBtn.addEventListener("click",async()=>{
