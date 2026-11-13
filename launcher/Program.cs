@@ -6,8 +6,6 @@ using System.Windows.Forms;
 [assembly: System.Reflection.AssemblyTitle("OpenCode Orchestrator Kit")]
 [assembly: System.Reflection.AssemblyProduct("OpenCode Orchestrator Kit")]
 [assembly: System.Reflection.AssemblyDescription("Windows installer launcher for OpenCode Orchestrator Kit")]
-[assembly: System.Reflection.AssemblyVersion("0.4.3.0")]
-[assembly: System.Reflection.AssemblyFileVersion("0.4.3.0")]
 
 static class Program
 {

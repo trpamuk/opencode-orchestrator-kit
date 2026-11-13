@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.4 - 2026-11-13
+
+- Launcher file version now follows `VERSION` automatically
+- Fixed the GUI installer argument variable to avoid PowerShell's automatic `$args`
+- Re-verified OpenCode Desktop 2.3.0 and OMO-slim 3.0.7 compatibility
+
 ## 0.4.3 - 2026-11-13
 
 - Added `OpenCodeOrchestratorKit.exe`, a .NET Framework WinExe launcher for the GUI installer

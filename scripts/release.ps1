@@ -21,7 +21,7 @@ if (-not $Version) {
 $dist = Join-Path $root "dist"
 New-Item -ItemType Directory -Force -Path $dist | Out-Null
 $launcherDir = Join-Path $dist "launcher"
-& (Join-Path $PSScriptRoot "build-launcher.ps1") -OutputDir $launcherDir
+& (Join-Path $PSScriptRoot "build-launcher.ps1") -OutputDir $launcherDir -Version $Version
 $launcher = Join-Path $launcherDir "OpenCodeOrchestratorKit.exe"
 if ($CertificateThumbprint) {
   & (Join-Path $PSScriptRoot "sign.ps1") -Thumbprint $CertificateThumbprint -File $launcher

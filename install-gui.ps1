@@ -1,4 +1,4 @@
-param(
+﻿param(
   [switch]$SelfTest,
   [string]$ConfigDir = (Join-Path $env:USERPROFILE ".config\opencode")
 )
@@ -131,18 +131,18 @@ $closeButton.Add_Click({ $form.Close() })
 
 $installButton.Add_Click({
   $modelId = [string]$combo.SelectedValue
-  $args = @(
+  $installArgs = @(
     "-NoProfile",
     "-ExecutionPolicy", "Bypass",
     "-File", $installer,
     "-ConfigDir", $ConfigDir
   )
-  if (-not $shortcuts.Checked) { $args += "-NoShortcuts" }
-  if (-not $startPanel.Checked) { $args += "-NoStart" }
+  if (-not $shortcuts.Checked) { $installArgs += "-NoShortcuts" }
+  if (-not $startPanel.Checked) { $installArgs += "-NoStart" }
   switch ($modelId) {
-    "__keep" { $args += "-NoModelPrompt" }
-    "__none" { $args += "-ClearModel" }
-    default { $args += @("-Model", $modelId) }
+    "__keep" { $installArgs += "-NoModelPrompt" }
+    "__none" { $installArgs += "-ClearModel" }
+    default { $installArgs += @("-Model", $modelId) }
   }
 
   $installButton.Enabled = $false
@@ -153,7 +153,7 @@ $installButton.Add_Click({
   [System.Windows.Forms.Application]::DoEvents()
 
   try {
-    $output = & powershell @args 2>&1
+    $output = & powershell @installArgs 2>&1
     $log.Text = ($output -join "`r`n")
     [System.Windows.Forms.MessageBox]::Show(
       "Kurulum tamamlandi.`r`n`r`nOpenCode Desktop'i tamamen kapatip yeniden ac.",
@@ -185,3 +185,4 @@ if ($SelfTest) {
 
 [void]$form.ShowDialog()
 $form.Dispose()
+
