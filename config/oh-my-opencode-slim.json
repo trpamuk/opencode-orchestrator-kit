@@ -141,7 +141,7 @@
     "concurrency": {
       "defaultConcurrency": 2
     },
-    "wallClockTimeoutMs": 1800000
+    "wallClockTimeoutMs": 0
   },
   "companion": {
     "enabled": false,

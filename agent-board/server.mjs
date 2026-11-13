@@ -280,8 +280,18 @@ function taskFromPart(session, message, part, stuckMs = STUCK_MS) {
   const completedAt = state.time?.completed || message.time?.completed || null;
   const status = state.status || "unknown";
   const running = status === "running";
+  const lastActivityAt = Math.max(
+    Number(session.time?.updated) || 0,
+    Number(message.time?.completed) || 0,
+    Number(message.time?.created) || 0,
+    Number(state.time?.ran) || 0,
+    Number(state.time?.completed) || 0,
+  );
   const stuck = Boolean(
-    running && startedAt && Date.now() - startedAt > stuckMs,
+    running &&
+      startedAt &&
+      Date.now() - startedAt > stuckMs &&
+      Date.now() - lastActivityAt > stuckMs,
   );
   const description = String(input.description || input.prompt || "")
     .replace(/\s+/g, " ")

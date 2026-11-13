@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.16 - 2026-11-13
+
+- The kit no longer sets a 30-minute `backgroundJobs.wallClockTimeoutMs`; it now uses OMO's default `0` (disabled) so long background subagents are not aborted automatically
+- Panel stuck detection now requires both the tool start and the last session/message activity to be older than the configured threshold
+- The stuck-card label uses the configured threshold instead of a hardcoded 15 minutes
+- Added subagent troubleshooting for OMO #1877 (stale spinner), OpenCode #61413 (`Step interrupted` on parent shutdown) and OpenCode stream-stall issues #53747/#59565/#57127
+
 ## 0.4.15 - 2026-11-13
 
 - Added panel-wide appearance settings: theme (dark/light/system), density (comfortable/compact), accent color (gold/blue/green/purple) and reduced motion

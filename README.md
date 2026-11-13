@@ -1,6 +1,6 @@
 # OpenCode Orchestrator Kit
 
-**Version:** 0.4.15  
+**Version:** 0.4.16  
 **Platform:** Windows 10/11, macOS/Linux (experimental)  
 **Status:** early public preview
 
@@ -248,7 +248,7 @@ To sign the launcher, pass a certificate thumbprint (or `-PfxPath` / `-PfxPasswo
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\release.ps1 `
-  -Version 0.4.15 `
+  -Version 0.4.16 `
   -CertificateThumbprint <thumbprint> `
   -Publish
 ```
@@ -258,8 +258,8 @@ The `Release` GitHub Actions workflow can build and publish with the `WINDOWS_CE
 Verify a local or published release:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.15
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.15 -Online -RequireSignature
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.16
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.16 -Online -RequireSignature
 ```
 
 The verifier checks the SHA256, embedded `VERSION` files, required ZIP entries, launcher version and signature, and the Scoop/Winget manifest URLs and hashes.
@@ -403,7 +403,7 @@ The dashboard now surfaces these calls directly:
 - check `git status` before re-running the task, because a stopped fixer may leave uncommitted changes;
 - if the session does not clear, fully restart OpenCode Desktop.
 
-The kit also sets `backgroundJobs.wallClockTimeoutMs` to `1800000` (30 minutes) in the OMO-slim config. This aborts a background child session that was launched successfully. It cannot stop a native tool call that hangs before creating a child session; the dashboard warning is the early-warning path for that case.
+The kit leaves `backgroundJobs.wallClockTimeoutMs` at OMO's default `0` (disabled), so long background subagents are not aborted automatically. The dashboard's **Durdur** button and the opt-in auto-stop are the safety net. If you want an automatic deadline, set it to a finite value (for example `7200000` for 2 hours). OMO #1860 documents a queued-input side effect after a wall-clock deadline or cancel.
 
 If the problem repeats and you prefer reliability over parallel background work, you can force same-provider subagents to run in the foreground:
 
@@ -416,6 +416,16 @@ If the problem repeats and you prefer reliability over parallel background work,
 ```
 
 This avoids the native background path entirely, at the cost of serializing those subagents.
+
+### Subagent looks stuck or cut off
+
+Check the actual session outcome first: open **Detay**, look at the last message/tool, or ask the orchestrator for `task_status`. Three upstream issues can look similar:
+
+1. **The spinner keeps spinning but the session is `succeeded`.** OMO-slim 3.0.7 cannot read `client.session.status` on OpenCode 2.3.0 V2, so a finished background task can stay marked `running` (OMO #1877). Restarting OpenCode does not clear it. Ask the orchestrator to run `task_cancel <taskID>`; that closes the stale board record. An upstream fix is pending.
+2. **The child ends with `interrupted` / `Step interrupted`.** OpenCode core aborts a foreground subagent when its parent session is shut down or stopped (OpenCode #61413). Do not close OpenCode Desktop or stop the parent while subagents are running; let them finish. The core fix is pending (PR #61414).
+3. **No activity for a long time and the session stays busy.** A provider stream can stall without an error (OpenCode #53747, #59565, #57127). Interrupt the child/parent, check `git status`, then retry. Check the provider's `timeout`/`chunkTimeout` settings and lower `backgroundJobs.concurrency.defaultConcurrency` if you use a rate-limited provider.
+
+If you set `backgroundJobs.wallClockTimeoutMs` yourself, it can abort background children at that deadline; the kit default is `0`.
 
 ### Update badge
 
@@ -499,7 +509,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Türkçe
 
-**Sürüm:** 0.4.15  
+**Sürüm:** 0.4.16  
 **Platform:** Windows 10/11, macOS/Linux (deneysel)
 
 Bu kit, OpenCode Desktop + OMO-slim + Ajan Panosu + Board Guard kurulumunu tek tıkla yapar.
@@ -545,6 +555,7 @@ Tek bir ajana özel model vermek için `model`, oturum modelini takip etmesi iç
 - Sunucu Startup'ta otomatik başlar.
 - **Alt Görevler** bölümü, oturum içinde çalışan `subagent`/`task` çağrılarını gösterir; ayarlanabilir eşikten (varsayılan 15 dk) sonra `takıldı?` olur.
 - Takılı kartlarda **Durdur** butonu vardır; onay ister ve sadece o oturumun mevcut çalışmasını keser. Dosya/board değiştirmez; tekrar çalıştırmadan önce `git status` kontrol edilmeli.
+- Alt görev "takıldı" görünüyorsa önce sonucu kontrol et: oturum `succeeded` ise OMO #1877 kaynaklı eski spinner olabilir; `task_cancel <taskID>` ile temizle. `interrupted`/`Step interrupted` ise OpenCode #61413; parent/Desktop kapatma ile kesilmiştir. Uzun sessizlikte provider stream takılması olabilir (#53747/#59565/#57127); durdurup `git status` kontrol ederek yeniden dene. Kit artık 30 dk otomatik wall-clock timeout koymaz.
 - **Modeller** butonu ile orchestrator, oracle, explorer, designer, fixer ve observer için oturum modeli, belirli model, yedek model, variant ve model testi kullanılabilir.
 - **Detay** butonu son tool çağrılarını, hataları, modeli, token/maliyeti, oturum ağacını gösterir; canlı yenileme, tool filtresi, hata kopyalama ve **Yeniden dene** vardır.
 - **Ayarlar** ile görünüm (tema, yoğunluk, vurgu rengi, hareket azaltma), takılma eşiği, opt-in otomatik durdurma, opt-in otomatik yeniden deneme (30 sn sonra 1 kez), Web Bildirimleri ve diagnostic indirme ayarlanır. Görünüm tercihleri yalnızca tarayıcı `localStorage`'ında tutulur.
