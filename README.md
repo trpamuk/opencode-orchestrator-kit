@@ -1,6 +1,6 @@
 # OpenCode Orchestrator Kit
 
-**Version:** 0.4.4  
+**Version:** 0.4.5  
 **Platform:** Windows 10/11, macOS/Linux (experimental)  
 **Status:** early public preview
 
@@ -15,7 +15,7 @@ A one-click Windows bootstrap for a practical multi-agent OpenCode setup:
 
 ---
 
-## v0.4.0 highlights
+## Recent highlights
 
 - **Update awareness:** the dashboard shows its version and checks the latest GitHub release.
 - **Safer writes:** every panel write endpoint requires a per-process token, not just a same-origin request.
@@ -28,6 +28,7 @@ A one-click Windows bootstrap for a practical multi-agent OpenCode setup:
 - **Operations:** agent analytics, Board Guard log viewer, board archive button and diagnostic bundle.
 - **Installers:** WinForms GUI on Windows and an experimental `install.sh` for macOS/Linux.
 - **Release tooling:** SHA256 checksums, Scoop manifest, Winget template and GitHub Actions CI.
+- **Signing pipeline:** PFX/thumbprint signing, a CI signing smoke test and an optional signed release workflow.
 
 ---
 
@@ -66,7 +67,9 @@ It does **not** replace OpenCode or OMO-slim. It configures them and adds the mi
 | `diagnostic.cmd` | Creates a redacted diagnostic ZIP |
 | `scripts/release.ps1` | Maintainer release, SHA256 and packaging helper |
 | `scripts/sign.ps1` | Code-signing helper for a user-provided certificate |
-| `.github/workflows/ci.yml` | Windows CI for syntax, installer and config tests |
+| `.github/workflows/ci.yml` | Windows CI for syntax, installer, config and signing tests |
+| `.github/workflows/release.yml` | Optional signed release workflow |
+| `docs/signing.md` | Code-signing and Winget submission guide |
 | `doctor.cmd` | Checks the installed setup |
 | `uninstall.cmd` | Removes shortcuts and stops the dashboard server |
 
@@ -217,6 +220,21 @@ Run **`update.cmd`** (or `update.ps1`). It:
 - runs the same safe installer with your existing config.
 
 Use `-Yes` for unattended mode and `-Force` to reinstall the same version. The updater preserves your model, preset choice and `guard.log`.
+
+### Maintainer release and signing
+
+`scripts\release.ps1` builds the launcher, injects it into the ZIP, writes the SHA256, regenerates the Scoop/Winget manifests and optionally publishes with `gh`.
+
+To sign the launcher, pass a certificate thumbprint (or `-PfxPath` / `-PfxPassword`):
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\release.ps1 `
+  -Version 0.4.5 `
+  -CertificateThumbprint <thumbprint> `
+  -Publish
+```
+
+The `Release` GitHub Actions workflow can build and publish with the `WINDOWS_CERT_PFX_BASE64` and `WINDOWS_CERT_PASSWORD` repository secrets. See [docs/signing.md](docs/signing.md) for certificate setup, verification, self-signed testing and Winget submission.
 
 ---
 
@@ -416,7 +434,7 @@ doctor.cmd
 - The diagnostic endpoint redacts common secret patterns from config summaries and log tails.
 - Project profiles are written only to `<project>\.opencode\oh-my-opencode-slim.json` after validating that the project directory exists.
 - `update.cmd` verifies the release SHA256 before extracting or running the installer.
-- `OpenCodeOrchestratorKit.exe` is unsigned by default. Sign it with `scripts\sign.ps1` and a trusted code-signing certificate before public distribution.
+- `OpenCodeOrchestratorKit.exe` is unsigned by default. Sign it with `scripts\sign.ps1` and a trusted code-signing certificate before public distribution. See [docs/signing.md](docs/signing.md).
 - Do not expose port `43124` to a LAN or the internet without an authenticated reverse proxy.
 - Review third-party OpenCode plugins before installing them.
 
@@ -442,7 +460,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Türkçe
 
-**Sürüm:** 0.4.4  
+**Sürüm:** 0.4.5  
 **Platform:** Windows 10/11, macOS/Linux (deneysel)
 
 Bu kit, OpenCode Desktop + OMO-slim + Ajan Panosu + Board Guard kurulumunu tek tıkla yapar.
@@ -517,7 +535,7 @@ Sadece projenin `.opencode/plans/current.md` ve `.opencode/plans/boards/*.md` al
 
 ### Güvenlik
 
-Kit içinde API key yoktur. `service.json`, `.env`, yedekler ve loglar repoya dahil edilmez. Panel yalnızca `127.0.0.1` üzerinde dinler. Panel write endpoint'leri süreç başına `X-Panel-Token` ister; model listesi sanitize edilir, diagnostic çıktısındaki hassas desenler redakte edilir. `update.cmd` indirdiği ZIP'in SHA256'sını doğrular. `OpenCodeOrchestratorKit.exe` varsayılan olarak imzasızdır; public dağıtımdan önce `scripts\sign.ps1` ile imzalanmalıdır.
+Kit içinde API key yoktur. `service.json`, `.env`, yedekler ve loglar repoya dahil edilmez. Panel yalnızca `127.0.0.1` üzerinde dinler. Panel write endpoint'leri süreç başına `X-Panel-Token` ister; model listesi sanitize edilir, diagnostic çıktısındaki hassas desenler redakte edilir. `update.cmd` indirdiği ZIP'in SHA256'sını doğrular. `OpenCodeOrchestratorKit.exe` varsayılan olarak imzasızdır; public dağıtımdan önce `scripts\sign.ps1` ile imzalanmalıdır. Ayrıntılar: [docs/signing.md](docs/signing.md).
 
 ---
 

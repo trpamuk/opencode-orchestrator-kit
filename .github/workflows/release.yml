@@ -1,0 +1,74 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to build (must match VERSION)"
+        required: true
+        type: string
+      publish:
+        description: "Publish the built assets to GitHub Releases"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    env:
+      CERT_PFX_BASE64: ${{ secrets.WINDOWS_CERT_PFX_BASE64 }}
+      CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Import code-signing certificate
+        if: env.CERT_PFX_BASE64 != ''
+        shell: pwsh
+        run: |
+          $pfx = Join-Path $env:RUNNER_TEMP "codesign.pfx"
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:CERT_PFX_BASE64))
+          $secure = ConvertTo-SecureString $env:CERT_PASSWORD -AsPlainText -Force
+          $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $secure
+          Remove-Item $pfx -Force
+          "CERT_THUMBPRINT=$($cert.Thumbprint)" >> $env:GITHUB_ENV
+          Write-Host "Imported code-signing certificate: $($cert.Subject)"
+
+      - name: Build release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = "${{ inputs.version }}"
+          $releaseArgs = @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", "scripts/release.ps1",
+            "-Version", $version
+          )
+          if ($env:CERT_THUMBPRINT) {
+            $releaseArgs += @("-CertificateThumbprint", $env:CERT_THUMBPRINT)
+          } else {
+            Write-Warning "No signing certificate secret configured; building an unsigned launcher."
+          }
+          if ("${{ inputs.publish }}" -eq "true") {
+            $releaseArgs += "-Publish"
+          }
+          powershell @releaseArgs
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-v${{ inputs.version }}
+          path: |
+            dist/opencode-orchestrator-kit-v*.zip
+            dist/opencode-orchestrator-kit-v*.zip.sha256
+            dist/packaging/*
+          if-no-files-found: error

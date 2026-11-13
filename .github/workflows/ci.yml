@@ -96,14 +96,33 @@ jobs:
       - name: Launcher and packaging validation
         shell: pwsh
         run: |
-          powershell -NoProfile -ExecutionPolicy Bypass -File scripts/release.ps1 -Version 0.0.1
+          $version = (Get-Content VERSION -Raw).Trim()
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts/release.ps1 -Version $version
           if (-not (Test-Path "dist\launcher\OpenCodeOrchestratorKit.exe")) { throw "launcher missing" }
-          if (-not (Test-Path "dist\opencode-orchestrator-kit-v0.0.1.zip")) { throw "release zip missing" }
+          if (-not (Test-Path "dist\opencode-orchestrator-kit-v$version.zip")) { throw "release zip missing" }
+          $zipVersion = tar -xOf "dist\opencode-orchestrator-kit-v$version.zip" VERSION
+          if ($zipVersion.Trim() -ne $version) { throw "zip VERSION mismatch" }
           if (Get-Command winget -ErrorAction SilentlyContinue) {
             winget validate --manifest "dist\packaging\trpamuk.OpenCodeOrchestratorKit.yaml"
             if ($LASTEXITCODE -ne 0) { throw "winget validation failed" }
           } else {
             Write-Host "winget not available; skipping manifest validation"
+          }
+
+      - name: Code-signing smoke test
+        shell: pwsh
+        run: |
+          $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=OpenCode Orchestrator Kit CI" -KeyExportPolicy Exportable -KeyUsage DigitalSignature -CertStoreLocation Cert:\CurrentUser\My -NotAfter (Get-Date).AddDays(1)
+          try {
+            $target = Join-Path $env:RUNNER_TEMP "launcher-signed.exe"
+            Copy-Item "dist\launcher\OpenCodeOrchestratorKit.exe" $target
+            powershell -NoProfile -ExecutionPolicy Bypass -File scripts/sign.ps1 -Thumbprint $cert.Thumbprint -File $target -TimestampServer none -AllowUntrusted
+            $signature = Get-AuthenticodeSignature $target
+            if (-not $signature.SignerCertificate) { throw "signature missing" }
+            if ($signature.SignerCertificate.Thumbprint -ne $cert.Thumbprint) { throw "wrong signer" }
+            Write-Host "Signature status: $($signature.Status)"
+          } finally {
+            Get-ChildItem Cert:\CurrentUser\My | Where-Object { $_.Subject -eq "CN=OpenCode Orchestrator Kit CI" } | Remove-Item -Force -ErrorAction SilentlyContinue
           }
 
       - name: Server smoke test

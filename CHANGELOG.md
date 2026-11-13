@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.5 - 2026-11-13
+
+- `scripts/sign.ps1` now supports certificate thumbprints and PFX files, verifies the signer, and can accept self-signed test signatures with `-AllowUntrusted`
+- `scripts/release.ps1` can sign the launcher during a release and rejects a `-Version` that does not match `VERSION`
+- Added an end-to-end code-signing smoke test to CI
+- Added the optional `Release` GitHub Actions workflow for signed builds using `WINDOWS_CERT_PFX_BASE64` and `WINDOWS_CERT_PASSWORD`
+- Added `docs/signing.md` with certificate, PFX, secret, verification and Winget submission steps
+- `update.cmd` and `update.ps1` remain SHA256-verified; `VERSION` and the launcher version stay in sync
+
 ## 0.4.4 - 2026-11-13
 
 - Launcher file version now follows `VERSION` automatically

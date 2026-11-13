@@ -2,7 +2,11 @@ param(
   [string]$Version = "",
   [switch]$Publish,
   [string]$Notes = "",
-  [string]$CertificateThumbprint = ""
+  [string]$CertificateThumbprint = "",
+  [string]$PfxPath = "",
+  [string]$PfxPassword = "",
+  [string]$TimestampServer = "http://timestamp.digicert.com",
+  [switch]$AllowUntrustedSignature
 )
 
 $ErrorActionPreference = "Stop"
@@ -14,8 +18,12 @@ function Write-NoBom([string]$path, [string]$text) {
   [IO.File]::WriteAllText($path, $text, $utf8)
 }
 
+$repoVersion = (Get-Content (Join-Path $root "VERSION") -Raw).Trim()
 if (-not $Version) {
-  $Version = (Get-Content (Join-Path $root "VERSION") -Raw).Trim()
+  $Version = $repoVersion
+}
+if ($Version -ne $repoVersion) {
+  throw "VERSION is $repoVersion but -Version is $Version. Bump and commit VERSION before releasing."
 }
 
 $dist = Join-Path $root "dist"
@@ -23,8 +31,21 @@ New-Item -ItemType Directory -Force -Path $dist | Out-Null
 $launcherDir = Join-Path $dist "launcher"
 & (Join-Path $PSScriptRoot "build-launcher.ps1") -OutputDir $launcherDir -Version $Version
 $launcher = Join-Path $launcherDir "OpenCodeOrchestratorKit.exe"
-if ($CertificateThumbprint) {
-  & (Join-Path $PSScriptRoot "sign.ps1") -Thumbprint $CertificateThumbprint -File $launcher
+if ($CertificateThumbprint -or $PfxPath) {
+  $signArgs = @{
+    File = $launcher
+    TimestampServer = $TimestampServer
+    AllowUntrusted = $AllowUntrustedSignature
+  }
+  if ($PfxPath) {
+    $signArgs.PfxPath = $PfxPath
+    $signArgs.PfxPassword = $PfxPassword
+  } else {
+    $signArgs.Thumbprint = $CertificateThumbprint
+  }
+  & (Join-Path $PSScriptRoot "sign.ps1") @signArgs
+  $launcherSignature = Get-AuthenticodeSignature $launcher
+  Write-Host "Launcher signature: $($launcherSignature.Status) - $($launcherSignature.SignerCertificate.Subject)"
 }
 
 $zip = Join-Path $dist ("opencode-orchestrator-kit-v" + $Version + ".zip")

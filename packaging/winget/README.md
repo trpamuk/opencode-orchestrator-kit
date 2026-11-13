@@ -13,4 +13,4 @@ The official winget repository generally expects a **trusted code signature**. T
 3. Rebuild the release ZIP and update `InstallerSha256`.
 4. Submit the manifest to `microsoft/winget-pkgs`.
 
-Code signing requires a certificate that only the publisher can provide.
+Code signing requires a certificate that only the publisher can provide. See [`docs/signing.md`](../../docs/signing.md) for the full local and GitHub Actions workflow.
