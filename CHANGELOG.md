@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.8 - 2026-11-13
+
+- `update.ps1` now refuses a release that has no `.sha256` asset or an invalid checksum file; SHA256 verification is mandatory
+- `scripts/release.ps1` now checks the committed `HEAD:VERSION`, rejects a dirty tree before building, and pins the GitHub release tag to the exact commit
+- Documented the stricter update and release integrity rules
+
 ## 0.4.7 - 2026-11-13
 
 - Diagnostic bundles now recursively redact secret-like keys and values from config summaries, profiles and guard logs

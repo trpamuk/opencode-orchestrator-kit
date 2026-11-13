@@ -25,6 +25,16 @@ if (-not $Version) {
 if ($Version -ne $repoVersion) {
   throw "VERSION is $repoVersion but -Version is $Version. Bump and commit VERSION before releasing."
 }
+$headVersion = (git show HEAD:VERSION).Trim()
+if ($headVersion -ne $Version) {
+  throw "HEAD VERSION is $headVersion but -Version is $Version. Commit VERSION before releasing."
+}
+if ($Publish) {
+  $status = git status --porcelain
+  if ($status) {
+    throw "Working tree dirty. Commit before publishing."
+  }
+}
 
 $dist = Join-Path $root "dist"
 New-Item -ItemType Directory -Force -Path $dist | Out-Null
@@ -93,12 +103,9 @@ Write-Host "Scoop manifest: $(Join-Path $pkg 'opencode-orchestrator-kit.json')"
 Write-Host "Winget manifest: $(Join-Path $pkg 'trpamuk.OpenCodeOrchestratorKit.yaml')"
 
 if ($Publish) {
-  $status = git status --porcelain
-  if ($status) {
-    throw "Working tree dirty. Commit before publishing."
-  }
   if (-not $Notes) {
     $Notes = "Release v" + $Version
   }
-  gh release create ("v" + $Version) $zip $shaFile (Join-Path $pkg "opencode-orchestrator-kit.json") (Join-Path $pkg "trpamuk.OpenCodeOrchestratorKit.yaml") --title ("v" + $Version) --notes $Notes
+  $target = (git rev-parse HEAD).Trim()
+  gh release create ("v" + $Version) $zip $shaFile (Join-Path $pkg "opencode-orchestrator-kit.json") (Join-Path $pkg "trpamuk.OpenCodeOrchestratorKit.yaml") --target $target --title ("v" + $Version) --notes $Notes
 }

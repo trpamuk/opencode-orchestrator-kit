@@ -1,6 +1,6 @@
 # OpenCode Orchestrator Kit
 
-**Version:** 0.4.7  
+**Version:** 0.4.8  
 **Platform:** Windows 10/11, macOS/Linux (experimental)  
 **Status:** early public preview
 
@@ -218,10 +218,10 @@ Run **`update.cmd`** (or `update.ps1`). It:
 
 - reads the latest GitHub release,
 - downloads the kit ZIP and its `.sha256`,
-- verifies the SHA256 before extracting,
+- requires and verifies the SHA256 before extracting,
 - runs the same safe installer with your existing config.
 
-Use `-Yes` for unattended mode and `-Force` to reinstall the same version. Use `-Version 0.4.5` to install or roll back to a specific release. The updater preserves your model, preset choice and `guard.log`, and verifies that the release tag, asset name and embedded `VERSION` files match before installing.
+Use `-Yes` for unattended mode and `-Force` to reinstall the same version. Use `-Version 0.4.7` to install or roll back to a specific release. The updater preserves your model, preset choice and `guard.log`, requires the release `.sha256`, and verifies that the release tag, asset name and embedded `VERSION` files match before installing.
 
 ### Maintainer release and signing
 
@@ -231,7 +231,7 @@ To sign the launcher, pass a certificate thumbprint (or `-PfxPath` / `-PfxPasswo
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\release.ps1 `
-  -Version 0.4.6 `
+  -Version 0.4.8 `
   -CertificateThumbprint <thumbprint> `
   -Publish
 ```
@@ -241,8 +241,8 @@ The `Release` GitHub Actions workflow can build and publish with the `WINDOWS_CE
 Verify a local or published release:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.6
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.6 -Online -RequireSignature
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.8
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.8 -Online -RequireSignature
 ```
 
 The verifier checks the SHA256, embedded `VERSION` files, required ZIP entries, launcher version and signature, and the Scoop/Winget manifest URLs and hashes.
@@ -444,7 +444,7 @@ doctor.cmd
 - The model list is sanitized before it reaches the browser; provider API keys and settings are never sent.
 - The diagnostic endpoint redacts common secret patterns from config summaries and log tails.
 - Project profiles are written only to `<project>\.opencode\oh-my-opencode-slim.json` after validating that the project directory exists.
-- `update.cmd` verifies the release SHA256 before extracting or running the installer.
+- `update.cmd` requires the release `.sha256` and verifies it before extracting or running the installer.
 - `OpenCodeOrchestratorKit.exe` is unsigned by default. Sign it with `scripts\sign.ps1` and a trusted code-signing certificate before public distribution. See [docs/signing.md](docs/signing.md).
 - Do not expose port `43124` to a LAN or the internet without an authenticated reverse proxy.
 - Review third-party OpenCode plugins before installing them.
@@ -471,7 +471,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Türkçe
 
-**Sürüm:** 0.4.7  
+**Sürüm:** 0.4.8  
 **Platform:** Windows 10/11, macOS/Linux (deneysel)
 
 Bu kit, OpenCode Desktop + OMO-slim + Ajan Panosu + Board Guard kurulumunu tek tıkla yapar.
@@ -546,7 +546,7 @@ Sadece projenin `.opencode/plans/current.md` ve `.opencode/plans/boards/*.md` al
 
 ### Güvenlik
 
-Kit içinde API key yoktur. `service.json`, `.env`, yedekler ve loglar repoya dahil edilmez. Panel yalnızca `127.0.0.1` üzerinde dinler. Panel write endpoint'leri süreç başına `X-Panel-Token` ister; model listesi sanitize edilir, diagnostic çıktısındaki hassas desenler redakte edilir. `update.cmd` indirdiği ZIP'in SHA256'sını doğrular. `OpenCodeOrchestratorKit.exe` varsayılan olarak imzasızdır; public dağıtımdan önce `scripts\sign.ps1` ile imzalanmalıdır. Ayrıntılar: [docs/signing.md](docs/signing.md).
+Kit içinde API key yoktur. `service.json`, `.env`, yedekler ve loglar repoya dahil edilmez. Panel yalnızca `127.0.0.1` üzerinde dinler. Panel write endpoint'leri süreç başına `X-Panel-Token` ister; model listesi sanitize edilir, diagnostic çıktısındaki hassas desenler redakte edilir. `update.cmd` indirdiği ZIP'in SHA256'sını zorunlu olarak doğrular. `OpenCodeOrchestratorKit.exe` varsayılan olarak imzasızdır; public dağıtımdan önce `scripts\sign.ps1` ile imzalanmalıdır. Ayrıntılar: [docs/signing.md](docs/signing.md).
 
 ---
 

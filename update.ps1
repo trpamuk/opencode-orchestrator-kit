@@ -48,18 +48,23 @@ $zip = Join-Path $temp $zipAsset.name
 Write-Host "Indiriliyor: v$version" -ForegroundColor Cyan
 Invoke-WebRequest -Uri $zipAsset.browser_download_url -OutFile $zip -UseBasicParsing -TimeoutSec 180
 
-$expected = $null
-if ($shaAsset) {
-  $shaResponse = Invoke-WebRequest -Uri $shaAsset.browser_download_url -UseBasicParsing -TimeoutSec 30
-  $shaText = if ($shaResponse.Content -is [byte[]]) {
-    [Text.Encoding]::UTF8.GetString($shaResponse.Content)
-  } else {
-    [string]$shaResponse.Content
-  }
-  $expected = ($shaText.Trim() -split '\s+')[0].ToLower()
+if (-not $shaAsset) {
+  Remove-Item $temp -Recurse -Force -ErrorAction SilentlyContinue
+  throw "Release v$version does not contain a .sha256 checksum."
+}
+$shaResponse = Invoke-WebRequest -Uri $shaAsset.browser_download_url -UseBasicParsing -TimeoutSec 30
+$shaText = if ($shaResponse.Content -is [byte[]]) {
+  [Text.Encoding]::UTF8.GetString($shaResponse.Content)
+} else {
+  [string]$shaResponse.Content
+}
+$expected = ($shaText.Trim() -split '\s+')[0].ToLower()
+if ($expected -notmatch '^[a-f0-9]{64}$') {
+  Remove-Item $temp -Recurse -Force -ErrorAction SilentlyContinue
+  throw "Release v$version has an invalid SHA256 file."
 }
 $actual = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
-if ($expected -and $actual -ne $expected) {
+if ($actual -ne $expected) {
   Remove-Item $temp -Recurse -Force -ErrorAction SilentlyContinue
   throw "SHA256 mismatch. Expected $expected, got $actual."
 }

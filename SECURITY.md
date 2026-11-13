@@ -28,7 +28,7 @@ Include:
 - The model list is sanitized; provider API keys and settings are never sent to the browser.
 - The diagnostic endpoint redacts common secret patterns from config summaries and log tails.
 - Project profiles are written only to `<project>\.opencode\oh-my-opencode-slim.json` after validating the project directory.
-- `update.cmd` verifies the release SHA256 before extracting or running the installer.
+- `update.cmd` requires the release `.sha256` and verifies it before extracting or running the installer.
 - `OpenCodeOrchestratorKit.exe` is unsigned by default. Sign it with a trusted certificate via `scripts\sign.ps1` before public distribution. See [`docs/signing.md`](docs/signing.md).
 - Do not expose port `43124` to a LAN or the internet without an authenticated reverse proxy.
 - Review third-party OpenCode plugins before installing them.
