@@ -18,8 +18,22 @@ function log(...parts) {
   }
 }
 
+function canonical(value) {
+  const resolved = path.resolve(value);
+  try {
+    return fs.realpathSync.native(resolved);
+  } catch {
+    try {
+      const parent = path.dirname(resolved);
+      return path.join(fs.realpathSync.native(parent), path.basename(resolved));
+    } catch {
+      return resolved;
+    }
+  }
+}
+
 function normalize(value) {
-  return path.resolve(value).replaceAll("\\", "/").toLowerCase();
+  return canonical(value).replaceAll("\\", "/").toLowerCase();
 }
 
 function isBoardPath(value) {
@@ -37,13 +51,15 @@ function mainRoot(directory) {
       ["-C", directory, "rev-parse", "--git-common-dir"],
       { encoding: "utf8", timeout: 4000, windowsHide: true },
     ).trim();
-    if (!common) return directory;
+    if (!common) return canonical(directory);
     const resolved = path.resolve(directory, common);
-    return path.basename(resolved).toLowerCase() === ".git"
-      ? path.dirname(resolved)
-      : resolved;
+    return canonical(
+      path.basename(resolved).toLowerCase() === ".git"
+        ? path.dirname(resolved)
+        : resolved,
+    );
   } catch {
-    return directory;
+    return canonical(directory);
   }
 }
 

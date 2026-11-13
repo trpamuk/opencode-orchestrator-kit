@@ -1,6 +1,6 @@
 # OpenCode Orchestrator Kit
 
-**Version:** 0.4.9  
+**Version:** 0.4.10  
 **Platform:** Windows 10/11, macOS/Linux (experimental)  
 **Status:** early public preview
 
@@ -241,7 +241,7 @@ To sign the launcher, pass a certificate thumbprint (or `-PfxPath` / `-PfxPasswo
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\release.ps1 `
-  -Version 0.4.9 `
+  -Version 0.4.10 `
   -CertificateThumbprint <thumbprint> `
   -Publish
 ```
@@ -251,8 +251,8 @@ The `Release` GitHub Actions workflow can build and publish with the `WINDOWS_CE
 Verify a local or published release:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.9
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.9 -Online -RequireSignature
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.10
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.10 -Online -RequireSignature
 ```
 
 The verifier checks the SHA256, embedded `VERSION` files, required ZIP entries, launcher version and signature, and the Scoop/Winget manifest URLs and hashes.
@@ -481,7 +481,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Türkçe
 
-**Sürüm:** 0.4.9  
+**Sürüm:** 0.4.10  
 **Platform:** Windows 10/11, macOS/Linux (deneysel)
 
 Bu kit, OpenCode Desktop + OMO-slim + Ajan Panosu + Board Guard kurulumunu tek tıkla yapar.

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.10 - 2026-11-13
+
+- Board Guard now canonicalizes Windows short/long paths before board comparisons, preventing false isolation denials in worktrees and CI
+- The Board Guard test now covers the Windows short-path case that failed in the 0.4.9 Windows CI run
+- Fixed the Windows CI failure from 0.4.9; the Linux installer job remains green
+
 ## 0.4.9 - 2026-11-13
 
 - `update.ps1 -CheckOnly` checks the latest or a specific release without downloading or installing
