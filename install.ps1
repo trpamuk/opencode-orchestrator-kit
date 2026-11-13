@@ -5,7 +5,8 @@ param(
   [switch]$NoModelPrompt,
   [switch]$ClearModel,
   [switch]$ListModels,
-  [string]$Model = ""
+  [string]$Model = "",
+  [int]$KeepBackups = 0
 )
 
 $ErrorActionPreference = "Stop"
@@ -31,6 +32,28 @@ function Backup-File([string]$path) {
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $target) | Out-Null
     Copy-Item $path $target -Force
     Write-Host "    yedek: $relative" -ForegroundColor DarkGray
+  }
+}
+
+function Prune-Backups([int]$keep) {
+  if ($keep -le 0) { return }
+  $backupsDir = Join-Path $configDir "backups"
+  if (-not (Test-Path $backupsDir)) { return }
+  $backups = @(Get-ChildItem $backupsDir -Directory -Filter "*-orchestrator-kit" -ErrorAction SilentlyContinue | Sort-Object Name -Descending)
+  if ($backups.Count -le $keep) { return }
+  $keepNames = @{}
+  foreach ($item in ($backups | Select-Object -First $keep)) {
+    $keepNames[$item.FullName.ToLower()] = $true
+  }
+  $removed = 0
+  foreach ($item in $backups) {
+    if ($item.FullName -eq $backupRoot) { continue }
+    if ($keepNames.ContainsKey($item.FullName.ToLower())) { continue }
+    Remove-Item $item.FullName -Recurse -Force -ErrorAction SilentlyContinue
+    $removed++
+  }
+  if ($removed -gt 0) {
+    Write-Host "    eski yedekler temizlendi: $removed (son $keep)" -ForegroundColor DarkGray
   }
 }
 
@@ -424,3 +447,4 @@ Write-Host "4. Side panel: Review pane -> yeni browser sekmesi -> ayni URL."
 Write-Host "5. Sorun olursa: doctor.cmd"
 Write-Host ""
 Write-Host "Yedek: $backupRoot" -ForegroundColor DarkGray
+Prune-Backups $KeepBackups

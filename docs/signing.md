@@ -1,5 +1,7 @@
 # Code signing
 
+Türkçe sürüm: [signing.tr.md](signing.tr.md).
+
 The kit ships `OpenCodeOrchestratorKit.exe`, a small .NET Framework launcher for the WinForms installer. The launcher is **unsigned by default**. Windows SmartScreen and the public Winget repository expect a trusted code signature, so sign the launcher before a public release.
 
 Signing requires a **code-signing certificate** that only the publisher can obtain. A self-signed certificate is useful for testing the pipeline, but it is not trusted by other machines.
@@ -26,7 +28,7 @@ Build and sign a release:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\release.ps1 `
-  -Version 0.4.13 `
+  -Version 0.4.14 `
   -CertificateThumbprint <thumbprint> `
   -Publish
 ```
@@ -39,7 +41,7 @@ You can skip the certificate store:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\release.ps1 `
-  -Version 0.4.13 `
+  -Version 0.4.14 `
   -PfxPath .\codesign.pfx `
   -PfxPassword "<password>" `
   -Publish
@@ -114,10 +116,10 @@ If the secrets are missing, the workflow builds an unsigned release and prints a
 
 ```powershell
 # Local dist folder
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.13
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.14
 
 # Download the GitHub release assets and require a trusted signature
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.13 -Online -RequireSignature
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.14 -Online -RequireSignature
 ```
 
 It verifies the SHA256, embedded `VERSION` and `agent-board/VERSION`, required ZIP entries, launcher file version, launcher signature, and the Scoop/Winget manifest version, URL and hash.

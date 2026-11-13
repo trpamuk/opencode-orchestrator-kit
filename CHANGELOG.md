@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.14 - 2026-11-13
+
+- Added `install.ps1 -KeepBackups N` and `update.ps1 -KeepBackups N` to prune old `*-orchestrator-kit` backups while keeping the newest N
+- `/api/diagnostic` now requires `X-Panel-Token`; the panel and `agent-board/diagnostic.ps1` send it automatically
+- Added a Turkish signing guide at `docs/signing.tr.md`
+- Added `.gitattributes` so shell scripts stay LF on Windows checkouts
+- Added `scripts/test-linux.sh`; CI now runs install, panel health and uninstall/purge on Linux
+- Fixed `uninstall.sh` so `pgrep` only matches the actual `node .../server.mjs` process
+
 ## 0.4.13 - 2026-11-13
 
 - Panel retries a failed default-model lookup after 2 seconds instead of caching the failure for 10 seconds

@@ -6,6 +6,7 @@ param(
   [switch]$Yes,
   [switch]$Force,
   [switch]$CheckOnly,
+  [int]$KeepBackups = 0,
   [Alias("Version")][string]$RequestedVersion = "",
   [string]$Repo = "trpamuk/opencode-orchestrator-kit"
 )
@@ -127,6 +128,14 @@ $installArgs = @(
 if ($NoShortcuts) { $installArgs += "-NoShortcuts" }
 if ($NoStart) { $installArgs += "-NoStart" }
 if ($NoModelPrompt) { $installArgs += "-NoModelPrompt" }
+if ($KeepBackups -gt 0) {
+  $installerText = Get-Content $installer -Raw
+  if ($installerText -match '\[int\]\$KeepBackups') {
+    $installArgs += @("-KeepBackups", $KeepBackups)
+  } else {
+    Write-Warning "Bu surum -KeepBackups desteklemiyor; yedekler korunacak."
+  }
+}
 
 & powershell @installArgs
 if ($LASTEXITCODE -ne 0) {

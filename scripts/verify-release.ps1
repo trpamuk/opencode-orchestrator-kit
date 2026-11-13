@@ -107,7 +107,9 @@ try {
     "scripts/verify-release.ps1",
     "scripts/test-panel.mjs",
     "scripts/test-board-guard.mjs",
+    "scripts/test-linux.sh",
     "docs/signing.md",
+    "docs/signing.tr.md",
     ".github/workflows/release.yml",
     "packaging/scoop/opencode-orchestrator-kit.json",
     "packaging/winget/trpamuk.OpenCodeOrchestratorKit.yaml"

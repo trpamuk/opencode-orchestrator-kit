@@ -120,7 +120,13 @@ try {
   const traversal = await fetch(`${base}/assets/%2e%2e%2fserver.mjs`);
   assert.equal(traversal.status, 404, "asset traversal should be blocked");
 
-  const diagnostic = await (await fetch(`${base}/api/diagnostic`)).json();
+  const diagnosticNoToken = await fetch(`${base}/api/diagnostic`);
+  assert.equal(diagnosticNoToken.status, 403, "diagnostic should reject a missing token");
+  const diagnostic = await (
+    await fetch(`${base}/api/diagnostic`, {
+      headers: { "x-panel-token": token },
+    })
+  ).json();
   const diagnosticText = JSON.stringify(diagnostic);
   assert.equal(diagnostic.omoConfig.apiKey, "***", "apiKey should be masked");
   assert.equal(diagnostic.omoConfig.nested.password, "***", "password should be masked");

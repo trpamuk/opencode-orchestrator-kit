@@ -1607,6 +1607,16 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     if (url.pathname === "/api/diagnostic") {
+      if (req.method !== "GET") {
+        res.writeHead(405, { "content-type": "text/plain; charset=utf-8" });
+        res.end("method not allowed");
+        return;
+      }
+      if (!isPanelTokenValid(req)) {
+        res.writeHead(403, { "content-type": "text/plain; charset=utf-8" });
+        res.end("forbidden token");
+        return;
+      }
       const data = await getDiagnostic();
       res.writeHead(200, {
         "content-type": "application/json; charset=utf-8",

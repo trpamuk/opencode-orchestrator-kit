@@ -63,7 +63,8 @@ elif command -v systemctl >/dev/null 2>&1; then
 fi
 
 if command -v pgrep >/dev/null 2>&1; then
-  PIDS="$(pgrep -f "$CONFIG_DIR/agent-board/server.mjs" 2>/dev/null || true)"
+  PANEL_PATTERN="[n]ode .*${CONFIG_DIR}/agent-board/server[.]mjs"
+  PIDS="$(pgrep -f "$PANEL_PATTERN" 2>/dev/null || true)"
   if [[ -n "$PIDS" ]]; then
     if [[ $DRY_RUN -eq 1 ]]; then
       echo "[dry-run] kill $PIDS"

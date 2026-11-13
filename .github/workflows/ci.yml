@@ -20,15 +20,10 @@ jobs:
           bash -n install.sh
           bash -n uninstall.sh
           bash -n doctor.sh
+          bash -n scripts/test-linux.sh
 
-      - name: Linux installer smoke test
-        run: |
-          bash install.sh --config-dir "$RUNNER_TEMP/opencode" --no-shortcuts --no-start
-          test -f "$RUNNER_TEMP/opencode/opencode.json"
-          test -f "$RUNNER_TEMP/opencode/oh-my-opencode-slim.json"
-          test -f "$RUNNER_TEMP/opencode/agent-board/server.mjs"
-          bash uninstall.sh --config-dir "$RUNNER_TEMP/opencode" --dry-run
-          test -f "$RUNNER_TEMP/opencode/agent-board/server.mjs"
+      - name: Linux install/panel/uninstall test
+        run: bash scripts/test-linux.sh
 
   windows:
     runs-on: windows-latest

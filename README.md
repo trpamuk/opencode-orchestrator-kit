@@ -1,6 +1,6 @@
 # OpenCode Orchestrator Kit
 
-**Version:** 0.4.13  
+**Version:** 0.4.14  
 **Platform:** Windows 10/11, macOS/Linux (experimental)  
 **Status:** early public preview
 
@@ -76,9 +76,11 @@ It does **not** replace OpenCode or OMO-slim. It configures them and adds the mi
 | `scripts/verify-release.ps1` | Verifies local or online release assets, SHA256, versions and signature |
 | `scripts/test-panel.mjs` | Panel token, origin, asset-traversal and diagnostic-redaction tests |
 | `scripts/test-board-guard.mjs` | Board isolation, worktree and agent-permission tests |
+| `scripts/test-linux.sh` | Linux install, panel health and uninstall integration test |
 | `.github/workflows/ci.yml` | Windows and Linux CI for syntax, installers, config, signing and isolation tests |
 | `.github/workflows/release.yml` | Optional signed release workflow |
 | `docs/signing.md` | Code-signing and Winget submission guide |
+| `docs/signing.tr.md` | Turkish code-signing and Winget guide |
 | `doctor.cmd` | Checks the installed setup |
 | `uninstall.cmd` | Removes shortcuts and stops the dashboard server |
 
@@ -214,6 +216,7 @@ The installer is safe to re-run. It:
 - preserves the existing `guard.log`,
 - preserves your `session`/`opencode-go` preset choice and your selected model,
 - backs up the current config and dashboard,
+- can prune older installer backups with `-KeepBackups N`,
 - swaps the new files into place,
 - restarts the dashboard and checks `/health`.
 
@@ -228,7 +231,7 @@ Run **`update.cmd`** (or `update.ps1`). It:
 - requires and verifies the SHA256 before extracting,
 - runs the same safe installer with your existing config.
 
-Use `-Yes` for unattended mode and `-Force` to reinstall the same version. Use `-Version 0.4.8` to install or roll back to a specific release. The updater preserves your model, preset choice and `guard.log`, requires the release `.sha256`, and verifies that the release tag, asset name and embedded `VERSION` files match before installing.
+Use `-Yes` for unattended mode and `-Force` to reinstall the same version. Use `-Version 0.4.8` to install or roll back to a specific release. Use `-KeepBackups 10` to keep only the newest 10 installer backups. The updater preserves your model, preset choice and `guard.log`, requires the release `.sha256`, and verifies that the release tag, asset name and embedded `VERSION` files match before installing.
 
 Use `-CheckOnly` to check the latest or a specific release without downloading:
 
@@ -245,7 +248,7 @@ To sign the launcher, pass a certificate thumbprint (or `-PfxPath` / `-PfxPasswo
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\release.ps1 `
-  -Version 0.4.13 `
+  -Version 0.4.14 `
   -CertificateThumbprint <thumbprint> `
   -Publish
 ```
@@ -255,8 +258,8 @@ The `Release` GitHub Actions workflow can build and publish with the `WINDOWS_CE
 Verify a local or published release:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.13
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.13 -Online -RequireSignature
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.14
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.14 -Online -RequireSignature
 ```
 
 The verifier checks the SHA256, embedded `VERSION` files, required ZIP entries, launcher version and signature, and the Scoop/Winget manifest URLs and hashes.
@@ -456,7 +459,7 @@ doctor.cmd
 - The **Durdur** button uses a local `POST /api/interrupt` endpoint. It accepts only same-origin requests and only active sessions that have a running subagent task. It interrupts execution; it never deletes files or boards.
 - Every panel write endpoint (`/api/interrupt`, `/api/profile`, `/api/preset`, `/api/project-profile/reset`, `/api/archive-board`, `/api/model-test`, `/api/retry`) requires a per-process `X-Panel-Token` injected into the panel HTML.
 - The model list is sanitized before it reaches the browser; provider API keys and settings are never sent.
-- The diagnostic endpoint redacts common secret patterns from config summaries and log tails.
+- The diagnostic endpoint requires `X-Panel-Token` and redacts common secret patterns from config summaries and log tails.
 - Project profiles are written only to `<project>\.opencode\oh-my-opencode-slim.json` after validating that the project directory exists.
 - `update.cmd` requires the release `.sha256` and verifies it before extracting or running the installer.
 - `OpenCodeOrchestratorKit.exe` is unsigned by default. Sign it with `scripts\sign.ps1` and a trusted code-signing certificate before public distribution. See [docs/signing.md](docs/signing.md).
@@ -485,7 +488,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Türkçe
 
-**Sürüm:** 0.4.13  
+**Sürüm:** 0.4.14  
 **Platform:** Windows 10/11, macOS/Linux (deneysel)
 
 Bu kit, OpenCode Desktop + OMO-slim + Ajan Panosu + Board Guard kurulumunu tek tıkla yapar.
@@ -560,7 +563,7 @@ Sadece projenin `.opencode/plans/current.md` ve `.opencode/plans/boards/*.md` al
 
 ### Güvenlik
 
-Kit içinde API key yoktur. `service.json`, `.env`, yedekler ve loglar repoya dahil edilmez. Panel yalnızca `127.0.0.1` üzerinde dinler. Panel write endpoint'leri süreç başına `X-Panel-Token` ister; model listesi sanitize edilir, diagnostic çıktısındaki hassas desenler redakte edilir. `update.cmd` indirdiği ZIP'in SHA256'sını zorunlu olarak doğrular. `OpenCodeOrchestratorKit.exe` varsayılan olarak imzasızdır; public dağıtımdan önce `scripts\sign.ps1` ile imzalanmalıdır. Ayrıntılar: [docs/signing.md](docs/signing.md).
+Kit içinde API key yoktur. `service.json`, `.env`, yedekler ve loglar repoya dahil edilmez. Panel yalnızca `127.0.0.1` üzerinde dinler. Panel write endpoint'leri ve diagnostic endpoint'i süreç başına `X-Panel-Token` ister; model listesi sanitize edilir, diagnostic çıktısındaki hassas desenler redakte edilir. `update.cmd` indirdiği ZIP'in SHA256'sını zorunlu olarak doğrular. `OpenCodeOrchestratorKit.exe` varsayılan olarak imzasızdır; public dağıtımdan önce `scripts\sign.ps1` ile imzalanmalıdır. Ayrıntılar: [docs/signing.md](docs/signing.md) · Türkçe: [docs/signing.tr.md](docs/signing.tr.md).
 
 ---
 

@@ -1,6 +1,7 @@
 param(
   [string]$OutputDir = "",
-  [string]$PanelUrl = "http://127.0.0.1:43124"
+  [string]$PanelUrl = "http://127.0.0.1:43124",
+  [string]$PanelToken = ""
 )
 
 $ErrorActionPreference = "Continue"
@@ -11,7 +12,15 @@ New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
 $panel = $PanelUrl
 $diagnosticPath = Join-Path $tempDir "diagnostic.json"
 try {
-  $diagnostic = Invoke-RestMethod -Uri ($panel + "/api/diagnostic") -TimeoutSec 30
+  if (-not $PanelToken) {
+    $page = Invoke-WebRequest -UseBasicParsing -Uri ($panel + "/") -TimeoutSec 10
+    $PanelToken = [regex]::Match($page.Content, 'name="panel-token" content="([^"]+)"').Groups[1].Value
+  }
+  if (-not $PanelToken) {
+    throw "Panel token alinamadi. Panelin calistigini kontrol edin."
+  }
+  $headers = @{ "x-panel-token" = $PanelToken }
+  $diagnostic = Invoke-RestMethod -Uri ($panel + "/api/diagnostic") -Headers $headers -TimeoutSec 30
   $diagnostic | ConvertTo-Json -Depth 20 | Set-Content -Path $diagnosticPath -Encoding UTF8
 } catch {
   @{

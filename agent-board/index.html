@@ -765,7 +765,7 @@ function openSettings(){
 }
 async function downloadDiagnostic(){
   try {
-    const r=await fetch("/api/diagnostic"); if(!r.ok) throw new Error(await r.text());
+    const r=await fetch("/api/diagnostic",{headers:{"x-panel-token":PANEL_TOKEN}}); if(!r.ok) throw new Error(await r.text());
     const blob=await r.blob();
     const a=document.createElement("a");
     a.href=URL.createObjectURL(blob);

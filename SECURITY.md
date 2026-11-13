@@ -26,7 +26,7 @@ Include:
 - Keep the dashboard on loopback.
 - Panel write endpoints require a per-process `X-Panel-Token` injected into the panel HTML.
 - The model list is sanitized; provider API keys and settings are never sent to the browser.
-- The diagnostic endpoint redacts common secret patterns from config summaries and log tails.
+- The diagnostic endpoint requires `X-Panel-Token` and redacts common secret patterns from config summaries and log tails.
 - Project profiles are written only to `<project>\.opencode\oh-my-opencode-slim.json` after validating the project directory.
 - `update.cmd` requires the release `.sha256` and verifies it before extracting or running the installer.
 - `OpenCodeOrchestratorKit.exe` is unsigned by default. Sign it with a trusted certificate via `scripts\sign.ps1` before public distribution. See [`docs/signing.md`](docs/signing.md).
