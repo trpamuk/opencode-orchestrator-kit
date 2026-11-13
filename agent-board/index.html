@@ -407,11 +407,17 @@
     <div class="setting-row">
       <label for="stuckSelect">Takılma eşiği</label>
       <select id="stuckSelect">
+        <option value="120000">2 dakika</option>
+        <option value="300000">5 dakika</option>
         <option value="600000">10 dakika</option>
         <option value="900000">15 dakika</option>
         <option value="1800000">30 dakika</option>
         <option value="3600000">60 dakika</option>
       </select>
+    </div>
+    <div class="setting-row">
+      <label for="autoRecoverToggle">Otomatik kurtar</label>
+      <div><input type="checkbox" id="autoRecoverToggle" /> <span class="muted">Takılan alt görevi durdurup 1 kez yeniden dener. Varsayılan kapalı.</span></div>
     </div>
     <div class="setting-row">
       <label for="autoStopToggle">Otomatik durdur</label>
@@ -481,6 +487,7 @@ const densitySelect = document.getElementById("densitySelect");
 const accentSelect = document.getElementById("accentSelect");
 const reducedMotionToggle = document.getElementById("reducedMotionToggle");
 const stuckSelect = document.getElementById("stuckSelect");
+const autoRecoverToggle = document.getElementById("autoRecoverToggle");
 const autoStopToggle = document.getElementById("autoStopToggle");
 const autoRetryToggle = document.getElementById("autoRetryToggle");
 const notifyBtn = document.getElementById("notifyBtn");
@@ -513,7 +520,7 @@ let activePreset = "";
 let detailSessionID = "";
 let detailTimer = null;
 let updateFetchedAt = 0;
-const notifyState = { first: true, notified: new Set(), autoStopped: new Set(), autoRetried: new Set() };
+const notifyState = { first: true, notified: new Set(), autoStopped: new Set(), autoRetried: new Set(), autoRecovered: new Set() };
 
 function loadSettings() {
   let saved = {};
@@ -524,7 +531,8 @@ function loadSettings() {
   }
   const stuck = Number(saved.stuckMs);
   return {
-    stuckMs: [600000, 900000, 1800000, 3600000].includes(stuck) ? stuck : 900000,
+    stuckMs: [120000, 300000, 600000, 900000, 1800000, 3600000].includes(stuck) ? stuck : 900000,
+    autoRecover: saved.autoRecover === true,
     autoStop: saved.autoStop === true,
     autoRetry: saved.autoRetry === true,
     notifications: saved.notifications === true,
@@ -701,7 +709,7 @@ function renderTasks(){
     const st=taskStatus(t); const parent=(state.sessions||[]).find(s=>s.id===t.sessionID);
     return '<article class="task-card '+st.cls+'">'+
       '<img class="avatar" src="'+esc(avatarFor(t.agent))+'" alt="'+esc(name)+'" />'+
-      '<div><div class="row"><span class="agent-name">'+esc(name)+'</span><span class="badge '+st.cls+'">'+esc(st.label)+'</span><span class="pill">#'+esc(t.agent)+'</span><span class="spacer"></span><span class="metric">'+esc(fmtDuration(t.elapsedMs))+'</span><button class="top-btn" data-detail-session="'+esc(t.sessionID)+'">Detay</button>'+(t.stuck?'<button class="stop-btn" data-stop-session="'+esc(t.sessionID)+'" data-stop-label="'+esc(name+" — "+(t.description||t.tool))+'">Durdur</button>':'')+'</div>'+
+      '<div><div class="row"><span class="agent-name">'+esc(name)+'</span><span class="badge '+st.cls+'">'+esc(st.label)+'</span><span class="pill">#'+esc(t.agent)+'</span><span class="spacer"></span><span class="metric">'+esc(fmtDuration(t.elapsedMs))+'</span><button class="top-btn" data-detail-session="'+esc(t.sessionID)+'">Detay</button>'+(t.stuck?'<button class="top-btn" data-recover-session="'+esc(t.sessionID)+'" data-recover-label="'+esc(name+" — "+(t.description||t.tool))+'" data-recover-description="'+esc(t.description||t.tool)+'">Kurtar</button><button class="stop-btn" data-stop-session="'+esc(t.sessionID)+'" data-stop-label="'+esc(name+" — "+(t.description||t.tool))+'">Durdur</button>':'')+'</div>'+
       '<div class="task-title" title="'+esc(t.description||t.tool)+'">'+esc(t.description||t.tool)+'</div>'+
       '<div class="task-meta"><span>üst: '+esc(parent?.title||t.sessionTitle||t.sessionID)+'</span><span>oturum #'+esc(shortId(t.sessionID))+'</span>'+(t.stuck?'<span>'+Math.round(settings.stuckMs/60000)+' dk+ güncelleme yok</span>':'')+'</div>'+
       '</div></article>';
@@ -719,7 +727,7 @@ function renderActive(){
       return '<article class="agent '+st.cls+'">'+
         '<img class="avatar" src="'+esc(avatarFor(id))+'" alt="'+esc(name2)+'" />'+
         '<div class="agent-body">'+
-          '<div class="row"><span class="agent-name">'+esc(name2)+'</span><span class="badge '+st.cls+'">'+esc(st.label)+'</span><span class="pill">#'+esc(id)+'</span><span class="spacer"></span><span class="metric cost">'+esc(fmtCost(s.cost))+'</span><button class="top-btn" data-detail-session="'+esc(s.id)+'">Detay</button>'+(st.cls==="stuck"?'<button class="stop-btn" data-stop-session="'+esc(s.id)+'" data-stop-label="'+esc(name2+" — "+(s.title||s.id))+'">Durdur</button>':'')+'</div>'+
+          '<div class="row"><span class="agent-name">'+esc(name2)+'</span><span class="badge '+st.cls+'">'+esc(st.label)+'</span><span class="pill">#'+esc(id)+'</span><span class="spacer"></span><span class="metric cost">'+esc(fmtCost(s.cost))+'</span><button class="top-btn" data-detail-session="'+esc(s.id)+'">Detay</button>'+(st.cls==="stuck"?'<button class="top-btn" data-recover-session="'+esc(s.id)+'" data-recover-label="'+esc(name2+" — "+(s.title||s.id))+'" data-recover-description="'+esc(s.title||s.id)+'">Kurtar</button><button class="stop-btn" data-stop-session="'+esc(s.id)+'" data-stop-label="'+esc(name2+" — "+(s.title||s.id))+'">Durdur</button>':'')+'</div>'+
           '<div class="agent-title" title="'+esc(s.title||s.id)+'">'+esc(s.title||s.id)+'</div>'+
           '<div class="agent-meta"><span>'+esc(modelText(s))+'</span><span>'+esc(s.parentID?"alt oturum":"ana oturum")+'</span><span>oturum #'+esc(shortId(s.id))+'</span></div>'+
           (pt?'<div class="parent">üst: '+esc(pt)+'</div>':'')+
@@ -972,6 +980,7 @@ function openSettings(){
   accentSelect.value=settings.accent;
   reducedMotionToggle.checked=settings.reducedMotion;
   stuckSelect.value=String(settings.stuckMs);
+  autoRecoverToggle.checked=settings.autoRecover;
   autoStopToggle.checked=settings.autoStop;
   autoRetryToggle.checked=settings.autoRetry;
   notifyStatus.textContent=settings.notifications?"açık":"kapalı";
@@ -1070,7 +1079,15 @@ function maybeNotifyAndAutoStop(){
         n.onclick=()=>{ window.focus(); openDetail(task.sessionID); };
       } catch {}
     }
-    if(settings.autoStop && task.startedAt && Date.now()-task.startedAt>settings.stuckMs+300000 && !notifyState.autoStopped.has(task.sessionID)){
+    if(settings.autoRecover && task.stuck && !notifyState.autoRecovered.has(task.sessionID)){
+      notifyState.autoRecovered.add(task.sessionID);
+      recoverSession(task.sessionID, "Otomatik kurtarma: "+task.agent, task.description||task.tool, true).then(ok=>{
+        if(ok && canNotify){
+          try { new Notification("Otomatik kurtarıldı",{body:(task.description||task.tool)+" · "+task.sessionTitle}); } catch {}
+        }
+      });
+    }
+    if(settings.autoStop && !settings.autoRecover && task.startedAt && Date.now()-task.startedAt>settings.stuckMs+300000 && !notifyState.autoStopped.has(task.sessionID)){
       notifyState.autoStopped.add(task.sessionID);
       panelPost("/api/interrupt",{sessionID:task.sessionID}).then(()=>{
         if(canNotify){
@@ -1111,6 +1128,8 @@ function maybeNotifyAndAutoStop(){
       notifyState.autoRetried.delete(sessionID);
     }
   }
+  // Keep autoRecovered for the page lifetime: one automatic recovery per session,
+  // so a retry that stalls again does not create an interrupt/retry loop.
 }
 async function checkUpdate(){
   if(Date.now()-updateFetchedAt<30*60*1000) return;
@@ -1184,7 +1203,7 @@ function renderDetail(data){
     '<div class="detail-metric"><div class="k">Son işlem</div><div class="v">'+esc(ago(session.updated))+'</div></div>'+
     '</div>'+
     (session.error?'<div class="tool-error">'+esc(session.error)+'</div>':'')+
-    (stuck?'<div class="row" style="margin-bottom:9px"><button class="stop-btn" data-stop-session="'+esc(session.id)+'" data-stop-label="'+esc(session.title||session.id)+'">Durdur</button></div>':'')+
+    (stuck?'<div class="row" style="margin-bottom:9px"><button class="top-btn" data-recover-session="'+esc(session.id)+'" data-recover-label="'+esc(session.title||session.id)+'" data-recover-description="'+esc(session.title||session.id)+'">Kurtar</button><button class="stop-btn" data-stop-session="'+esc(session.id)+'" data-stop-label="'+esc(session.title||session.id)+'">Durdur</button></div>':'')+
     '<h2 style="margin-top:12px">Son Tool Çağrıları</h2>'+
     (toolRows||'<div class="empty">Tool çağrısı yok.</div>')+
     renderLineage(session.id, data.children || []);
@@ -1220,6 +1239,22 @@ async function refresh(){
     activeEl.innerHTML='<div class="empty">'+esc(e.message)+'</div>';
   }
 }
+async function recoverSession(sessionID,label,description,silent=false){
+  if(!silent){
+    const ok=confirm(label+"\n\nTakılan alt görev durdurulup 1 kez yeniden denenecek. Devam edilsin mi?");
+    if(!ok) return false;
+  }
+  try { await panelPost("/api/interrupt",{sessionID}); } catch {}
+  await new Promise(resolve=>setTimeout(resolve,1500));
+  try {
+    await panelPost("/api/retry",{sessionID,description:description||"Takılan alt görevi yeniden dene."});
+    if(!silent) refresh();
+    return true;
+  } catch(e) {
+    if(!silent) alert("Kurtarılamadı: "+e.message);
+    return false;
+  }
+}
 async function stopSession(sessionID,label){
   const ok=confirm(label+"\n\nBu işlem sadece bu oturumun mevcut çalışmasını durdurur. Dosya silmez, board değiştirmez. Yarım kalan değişiklikler için tekrar çalıştırmadan önce git status kontrol et.\n\nDurdurulsun mu?");
   if(!ok) return;
@@ -1232,6 +1267,8 @@ async function stopSession(sessionID,label){
   }
 }
 document.addEventListener("click",event=>{
+  const recover=event.target.closest("[data-recover-session]");
+  if(recover){ recoverSession(recover.dataset.recoverSession,recover.dataset.recoverLabel||"Oturum",recover.dataset.recoverDescription||""); return; }
   const stop=event.target.closest("[data-stop-session]");
   if(stop){ stopSession(stop.dataset.stopSession,stop.dataset.stopLabel||"Oturum"); return; }
   const detail=event.target.closest("[data-detail-session]");
@@ -1313,6 +1350,10 @@ stuckSelect.addEventListener("change",()=>{
   settings.stuckMs=Number(stuckSelect.value)||900000;
   saveSettings();
   refresh();
+});
+autoRecoverToggle.addEventListener("change",()=>{
+  settings.autoRecover=autoRecoverToggle.checked;
+  saveSettings();
 });
 autoStopToggle.addEventListener("change",()=>{
   settings.autoStop=autoStopToggle.checked;

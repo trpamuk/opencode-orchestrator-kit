@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.17 - 2026-11-13
+
+- Added **Otomatik kurtar**: when a subagent stays stuck for the configured threshold, the panel interrupts it and retries it once
+- Added a manual **Kurtar** button to stuck task cards, stuck agent cards and the session detail dialog
+- Added 2-minute and 5-minute stuck-threshold options
+- Auto-recover runs only while the panel page is open and never deletes files or boards
+- The live panel was switched to a 5-minute threshold with auto-recover enabled as a practical exploration-stall workaround
+
 ## 0.4.16 - 2026-11-13
 
 - The kit no longer sets a 30-minute `backgroundJobs.wallClockTimeoutMs`; it now uses OMO's default `0` (disabled) so long background subagents are not aborted automatically
