@@ -1,6 +1,6 @@
 # OpenCode Orchestrator Kit
 
-**Version:** 0.4.14  
+**Version:** 0.4.15  
 **Platform:** Windows 10/11, macOS/Linux (experimental)  
 **Status:** early public preview
 
@@ -248,7 +248,7 @@ To sign the launcher, pass a certificate thumbprint (or `-PfxPath` / `-PfxPasswo
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\release.ps1 `
-  -Version 0.4.14 `
+  -Version 0.4.15 `
   -CertificateThumbprint <thumbprint> `
   -Publish
 ```
@@ -258,8 +258,8 @@ The `Release` GitHub Actions workflow can build and publish with the `WINDOWS_CE
 Verify a local or published release:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.14
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.14 -Online -RequireSignature
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.15
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.15 -Online -RequireSignature
 ```
 
 The verifier checks the SHA256, embedded `VERSION` files, required ZIP entries, launcher version and signature, and the Scoop/Winget manifest URLs and hashes.
@@ -281,7 +281,7 @@ It shows:
 - a **Durdur** button on stuck cards; it asks for confirmation and interrupts only that session's current run;
 - a **Modeller** button for per-agent model profiles, fallback chains, preset switching, model testing and per-project profiles;
 - a **Detay** button with live refresh, tool filter, copy error, lineage tree and retry;
-- a **Ayarlar** dialog for stuck threshold, opt-in auto-stop, opt-in auto-retry, Web Notifications and diagnostic download;
+- a **Ayarlar** dialog for appearance (theme, density, accent, reduced motion), stuck threshold, opt-in auto-stop, opt-in auto-retry, Web Notifications and diagnostic download;
 - an **Analitik** view with sessions, success/fail counts, average duration, tokens, cost and stuck tasks per agent;
 - a **Guard** view for the Board Guard log;
 - an **Arşivle** button on active boards;
@@ -423,6 +423,17 @@ The dashboard checks the latest GitHub release once an hour. If a newer release 
 
 The kit is tested with **OpenCode Desktop 2.3.0** and **OMO-slim 3.0.7**. OMO-slim 3.0.7 was the latest release at the time of writing.
 
+### Appearance
+
+Open **Ayarlar → Görünüm**:
+
+- **Tema:** Koyu, Açık or Sistem. **Sistem** follows the operating system preference.
+- **Yoğunluk:** Rahat or Kompakt. Kompakt reduces card padding and spacing.
+- **Vurgu rengi:** Altın, Mavi, Yeşil or Mor.
+- **Hareketi azalt:** disables transitions and animations. The OS `prefers-reduced-motion` setting is also respected.
+
+Appearance is stored in `localStorage` only. It does not call the server, change OpenCode config or send data anywhere. Changes apply instantly and survive reloads.
+
 ### Notifications and auto-stop
 
 Open **Ayarlar** and click **Bildirim izni**. Web Notifications are used for stuck tasks and failed/interrupted sessions. **Otomatik durdur** is opt-in and only triggers after the stuck threshold plus five minutes. It calls the same guarded interrupt endpoint as the **Durdur** button. **Otomatik yeniden dene** is also opt-in; after an auto-stop it sends one retry prompt 30 seconds later, once per stuck session.
@@ -488,7 +499,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Türkçe
 
-**Sürüm:** 0.4.14  
+**Sürüm:** 0.4.15  
 **Platform:** Windows 10/11, macOS/Linux (deneysel)
 
 Bu kit, OpenCode Desktop + OMO-slim + Ajan Panosu + Board Guard kurulumunu tek tıkla yapar.
@@ -536,7 +547,7 @@ Tek bir ajana özel model vermek için `model`, oturum modelini takip etmesi iç
 - Takılı kartlarda **Durdur** butonu vardır; onay ister ve sadece o oturumun mevcut çalışmasını keser. Dosya/board değiştirmez; tekrar çalıştırmadan önce `git status` kontrol edilmeli.
 - **Modeller** butonu ile orchestrator, oracle, explorer, designer, fixer ve observer için oturum modeli, belirli model, yedek model, variant ve model testi kullanılabilir.
 - **Detay** butonu son tool çağrılarını, hataları, modeli, token/maliyeti, oturum ağacını gösterir; canlı yenileme, tool filtresi, hata kopyalama ve **Yeniden dene** vardır.
-- **Ayarlar** ile takılma eşiği, opt-in otomatik durdurma, opt-in otomatik yeniden deneme (30 sn sonra 1 kez), Web Bildirimleri ve diagnostic indirme ayarlanır.
+- **Ayarlar** ile görünüm (tema, yoğunluk, vurgu rengi, hareket azaltma), takılma eşiği, opt-in otomatik durdurma, opt-in otomatik yeniden deneme (30 sn sonra 1 kez), Web Bildirimleri ve diagnostic indirme ayarlanır. Görünüm tercihleri yalnızca tarayıcı `localStorage`'ında tutulur.
 - **Analitik** agent bazlı başarı/hata/süre/maliyet/stuck tablosu gösterir.
 - **Guard** Board Guard log'unu, **Arşivle** aktif board'u arşive taşımayı sağlar.
 - Sürüm rozeti ve GitHub güncelleme kontrolü vardır.

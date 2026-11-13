@@ -26,7 +26,7 @@ Release oluştur ve imzala:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\release.ps1 `
-  -Version 0.4.14 `
+  -Version 0.4.15 `
   -CertificateThumbprint <thumbprint> `
   -Publish
 ```
@@ -39,7 +39,7 @@ Sertifika deposuna dokunmadan:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\release.ps1 `
-  -Version 0.4.14 `
+  -Version 0.4.15 `
   -PfxPath .\codesign.pfx `
   -PfxPassword "<password>" `
   -Publish

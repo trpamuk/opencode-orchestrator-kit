@@ -39,10 +39,13 @@ jobs:
         run: |
           node --check agent-board/server.mjs
           $html = Get-Content agent-board/index.html -Raw
-          $match = [regex]::Match($html, '(?s)<script>(.*?)</script>')
-          if (-not $match.Success) { throw "index.html script block not found" }
-          Set-Content -Path panel-script.js -Value $match.Groups[1].Value -Encoding utf8
-          node --check panel-script.js
+          $matches = [regex]::Matches($html, '(?s)<script>(.*?)</script>')
+          if ($matches.Count -eq 0) { throw "index.html script block not found" }
+          for ($i = 0; $i -lt $matches.Count; $i++) {
+            $file = "panel-script-$($i + 1).js"
+            Set-Content -Path $file -Value $matches[$i].Groups[1].Value -Encoding utf8
+            node --check $file
+          }
           node --check scripts/install-config.mjs
           node --check scripts/test-panel.mjs
           node --check scripts/test-board-guard.mjs

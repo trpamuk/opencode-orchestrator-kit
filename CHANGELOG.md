@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.15 - 2026-11-13
+
+- Added panel-wide appearance settings: theme (dark/light/system), density (comfortable/compact), accent color (gold/blue/green/purple) and reduced motion
+- Refactored the panel CSS to design tokens, including a full light theme and focus-visible styles
+- Appearance is stored in `localStorage` only; it does not call the server or change OpenCode config
+- Added an early theme script to avoid a flash of the wrong theme on reload
+- Lighthouse: accessibility 1.0, best practices 1.0, SEO 1.0
+
 ## 0.4.14 - 2026-11-13
 
 - Added `install.ps1 -KeepBackups N` and `update.ps1 -KeepBackups N` to prune old `*-orchestrator-kit` backups while keeping the newest N
