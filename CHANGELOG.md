@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.7 - 2026-11-13
+
+- Diagnostic bundles now recursively redact secret-like keys and values from config summaries, profiles and guard logs
+- Added `scripts/test-panel.mjs` to verify panel token enforcement, origin checks, asset traversal protection and diagnostic redaction
+- CI now runs the panel API tests
+
 ## 0.4.6 - 2026-11-13
 
 - `update.ps1` now accepts `-Version` for installing or rolling back to a specific release

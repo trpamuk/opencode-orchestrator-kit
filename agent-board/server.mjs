@@ -382,9 +382,8 @@ async function collectTasks(sessions, activeMap, stuckMs = STUCK_MS) {
     .slice(0, TASK_MAX_ITEMS);
 }
 
-function redact(text, max = 240) {
-  let value = String(text ?? "");
-  value = value
+function redactSecrets(text) {
+  return String(text ?? "")
     .replace(/\b(sk-[A-Za-z0-9_-]{8,})\b/g, "sk-***")
     .replace(/\b(ghp_[A-Za-z0-9]{8,})\b/g, "ghp_***")
     .replace(/\b(github_pat_[A-Za-z0-9_]{8,})\b/g, "github_pat_***")
@@ -394,7 +393,27 @@ function redact(text, max = 240) {
       "$1***",
     )
     .replace(/([?&](?:key|token|secret|password)=)[^&\s]+/gi, "$1***");
+}
+
+function redact(text, max = 240) {
+  let value = redactSecrets(text);
   if (value.length > max) value = value.slice(0, max) + "…";
+  return value;
+}
+
+const SECRET_KEY_RE =
+  /(api[_-]?key|token|secret|password|passwd|authorization|cookie|credential)/i;
+
+function redactValue(value) {
+  if (typeof value === "string") return redactSecrets(value);
+  if (Array.isArray(value)) return value.map(redactValue);
+  if (value && typeof value === "object") {
+    const out = {};
+    for (const [key, item] of Object.entries(value)) {
+      out[key] = SECRET_KEY_RE.test(key) ? "***" : redactValue(item);
+    }
+    return out;
+  }
   return value;
 }
 
@@ -1193,11 +1212,11 @@ async function getDiagnostic() {
     node: process.version,
     cwd: process.cwd(),
     configDir: CONFIG_DIR,
-    setup,
-    profiles,
-    omoConfig,
-    opencodeConfig,
-    guardLog: readGuardLog(100).lines,
+    setup: redactValue(setup),
+    profiles: redactValue(profiles),
+    omoConfig: redactValue(omoConfig),
+    opencodeConfig: redactValue(opencodeConfig),
+    guardLog: readGuardLog(100).lines.map((line) => redact(line, 2000)),
     logTails,
   };
 }

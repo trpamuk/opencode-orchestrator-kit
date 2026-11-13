@@ -25,6 +25,7 @@ jobs:
           Set-Content -Path panel-script.js -Value $match.Groups[1].Value -Encoding utf8
           node --check panel-script.js
           node --check scripts/install-config.mjs
+          node --check scripts/test-panel.mjs
 
       - name: PowerShell parse checks
         shell: pwsh
@@ -126,6 +127,10 @@ jobs:
           } finally {
             Get-ChildItem Cert:\CurrentUser\My | Where-Object { $_.Subject -eq "CN=OpenCode Orchestrator Kit CI" } | Remove-Item -Force -ErrorAction SilentlyContinue
           }
+
+      - name: Panel API tests
+        shell: pwsh
+        run: node scripts/test-panel.mjs
 
       - name: Server smoke test
         shell: pwsh

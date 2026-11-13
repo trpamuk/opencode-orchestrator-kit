@@ -1,6 +1,6 @@
 # OpenCode Orchestrator Kit
 
-**Version:** 0.4.6  
+**Version:** 0.4.7  
 **Platform:** Windows 10/11, macOS/Linux (experimental)  
 **Status:** early public preview
 
@@ -68,6 +68,7 @@ It does **not** replace OpenCode or OMO-slim. It configures them and adds the mi
 | `scripts/release.ps1` | Maintainer release, SHA256 and packaging helper |
 | `scripts/sign.ps1` | Code-signing helper for a user-provided certificate |
 | `scripts/verify-release.ps1` | Verifies local or online release assets, SHA256, versions and signature |
+| `scripts/test-panel.mjs` | Panel token, origin, asset-traversal and diagnostic-redaction tests |
 | `.github/workflows/ci.yml` | Windows CI for syntax, installer, config and signing tests |
 | `.github/workflows/release.yml` | Optional signed release workflow |
 | `docs/signing.md` | Code-signing and Winget submission guide |
@@ -470,7 +471,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Türkçe
 
-**Sürüm:** 0.4.6  
+**Sürüm:** 0.4.7  
 **Platform:** Windows 10/11, macOS/Linux (deneysel)
 
 Bu kit, OpenCode Desktop + OMO-slim + Ajan Panosu + Board Guard kurulumunu tek tıkla yapar.
