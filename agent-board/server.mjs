@@ -22,6 +22,7 @@ const OMO_CONFIG =
   process.env.AGENT_BOARD_OMO_CONFIG ||
   path.join(CONFIG_DIR, "oh-my-opencode-slim.json");
 const MODEL_CACHE_MS = 10000;
+const MODEL_FAILURE_CACHE_MS = 2000;
 const PROFILE_AGENTS = [
   "orchestrator",
   "oracle",
@@ -483,7 +484,11 @@ async function getDefaultModel() {
     defaultModelCache = { at: Date.now(), value };
     return value;
   } catch {
-    defaultModelCache = { at: Date.now(), value: null };
+    // OpenCode may still be starting. Retry sooner than a successful lookup.
+    defaultModelCache = {
+      at: Date.now() - MODEL_CACHE_MS + MODEL_FAILURE_CACHE_MS,
+      value: null,
+    };
     return null;
   }
 }

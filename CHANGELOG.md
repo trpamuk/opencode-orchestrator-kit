@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.13 - 2026-11-13
+
+- Panel retries a failed default-model lookup after 2 seconds instead of caching the failure for 10 seconds
+- This removes most false "no model selected" banners during OpenCode startup
+
 ## 0.4.12 - 2026-11-13
 
 - Added a generated multi-size launcher icon (`launcher/icon.ico`) and `scripts/build-icon.ps1`
