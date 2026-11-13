@@ -109,7 +109,7 @@ function allowedBoard(target, root) {
   const legacy = path.join(plans, "current.md");
   if (normalize(target) === normalize(legacy)) return true;
   const boards = path.join(plans, "boards");
-  const relative = path.relative(boards, target);
+  const relative = path.relative(boards, canonical(target));
   if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) return false;
   if (relative.includes(path.sep)) return false;
   return relative.toLowerCase().endsWith(".md");

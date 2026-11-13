@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.11 - 2026-11-13
+
+- Board Guard now canonicalizes the target path before `path.relative`, fixing false denials for board files under `boards/*.md` on Windows short paths
+- 0.4.10 fixed `current.md` comparisons; 0.4.11 fixes all board comparisons
+- Board Guard tests cover the Windows short-path case in CI
+
 ## 0.4.10 - 2026-11-13
 
 - Board Guard now canonicalizes Windows short/long paths before board comparisons, preventing false isolation denials in worktrees and CI
