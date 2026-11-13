@@ -3,6 +3,8 @@ param(
   [switch]$NoShortcuts,
   [switch]$NoStart,
   [switch]$NoModelPrompt,
+  [switch]$ClearModel,
+  [switch]$ListModels,
   [string]$Model = ""
 )
 
@@ -177,6 +179,17 @@ function Set-OpenCodeModel([string]$modelID) {
   }
 }
 
+if ($ListModels) {
+  $service = Get-OpenCodeService
+  $catalog = Get-ModelCatalog $service
+  if (-not $catalog) {
+    @{ models = @(); default = $null } | ConvertTo-Json -Compress
+    exit 1
+  }
+  @{ models = $catalog.Models; default = $catalog.Default } | ConvertTo-Json -Depth 6 -Compress
+  exit 0
+}
+
 Write-Host "OpenCode Orchestrator Kit - kurulum" -ForegroundColor Green
 Write-Host "Hedef: $configDir"
 
@@ -250,7 +263,10 @@ if (Test-Path $targetConfig) {
     $currentModel = $null
   }
 }
-if (-not [string]::IsNullOrWhiteSpace($Model)) {
+if ($ClearModel) {
+  Set-OpenCodeModel ""
+  Write-Host "    model alani bos birakildi; OpenCode'da secilecek." -ForegroundColor DarkGray
+} elseif (-not [string]::IsNullOrWhiteSpace($Model)) {
   if ($Model -notmatch '^[^/\s]+/[^/\s]+$') {
     throw "Model formati gecersiz. Ornek: opencode-go/deepseek-v4.1-flash"
   }

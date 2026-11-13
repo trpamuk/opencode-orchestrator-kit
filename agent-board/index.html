@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="panel-token" content="__PANEL_TOKEN__" />
 <title>Ajan Panosu</title>
 <style>
   :root {
@@ -58,11 +59,14 @@
   .stop-btn:hover { background:#3f0f0f; }
   .top-btn { background:#17171c; color:var(--text); border:1px solid #3f3f46; border-radius:6px; padding:3px 8px; font:10px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; cursor:pointer; }
   .top-btn:hover { background:#1f1f27; border-color:#52525b; }
+  .header-actions { display:flex; align-items:center; gap:4px; flex-wrap:wrap; }
+  .update-badge { color:var(--green); border-color:#14532d; background:#052e16; }
   .setup-banner { display:flex; align-items:center; gap:9px; padding:8px 16px; background:#1c1002; border-bottom:1px solid #78350f; color:#fbbf24; font-size:11px; }
   .setup-banner strong { color:#fde68a; }
   .modal { width:min(920px,94vw); max-height:86vh; border:1px solid #3f3f46; border-radius:12px; background:var(--panel); color:var(--text); padding:0; box-shadow:0 20px 80px rgba(0,0,0,.6); }
   .modal::backdrop { background:rgba(0,0,0,.72); }
-  .modal-head { display:flex; align-items:center; gap:9px; padding:11px 14px; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--panel); z-index:1; }
+  .modal-head { display:flex; align-items:center; gap:9px; flex-wrap:wrap; padding:11px 14px; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--panel); z-index:1; }
+  .top-input { background:#17171c; color:var(--text); border:1px solid #3f3f46; border-radius:5px; padding:3px 6px; font:10px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; width:150px; }
   .modal-head h2 { margin:0; }
   .modal-body { padding:12px 14px 16px; overflow:auto; max-height:calc(86vh - 54px); }
   .modal-hint { color:var(--muted); font-size:10px; margin-bottom:9px; }
@@ -76,6 +80,15 @@
   .profile-status { color:var(--muted); font-size:9px; min-width:54px; }
   .profile-status.ok { color:var(--green); }
   .profile-status.err { color:var(--red); }
+  .profile-controls { display:flex; flex-wrap:wrap; gap:5px; align-items:center; margin-top:4px; }
+  .profile-controls select { min-width:150px; }
+  .setting-row { display:grid; grid-template-columns:170px minmax(0,1fr); gap:9px; align-items:center; padding:7px 0; border-bottom:1px solid #202027; }
+  .setting-row label { color:#c7c7d1; font-size:11px; }
+  .setting-row select { background:#17171c; color:var(--text); border:1px solid #3f3f46; border-radius:5px; padding:3px 5px; font:10px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+  .log-pre { white-space:pre-wrap; word-break:break-word; font:10px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color:#c7c7d1; background:#0b0b0d; border:1px solid var(--line); border-radius:7px; padding:8px; max-height:60vh; overflow:auto; }
+  .analytics-table { width:100%; border-collapse:collapse; font-size:11px; }
+  .analytics-table th { text-align:left; color:var(--muted); font-weight:500; font-size:10px; padding:0 6px 7px 0; border-bottom:1px solid var(--line); }
+  .analytics-table td { padding:5px 6px 5px 0; border-bottom:1px solid #202027; }
   .detail-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:6px; margin-bottom:10px; }
   .detail-metric { border:1px solid var(--line); background:var(--panel2); border-radius:7px; padding:6px 8px; }
   .detail-metric .k { color:var(--muted); font-size:9px; }
@@ -131,7 +144,14 @@
   <select class="project-select" id="projectSelect" title="Proje seç"></select>
   <span class="muted" id="status">bağlanıyor...</span>
   <span class="spacer"></span>
-  <button class="top-btn" id="modelsBtn" title="Agent bazlı model profilleri">Modeller</button>
+  <div class="header-actions">
+    <span class="muted" id="versionBadge"></span>
+    <a class="top-btn update-badge" id="updateBadge" style="display:none" target="_blank" rel="noopener">Güncelleme</a>
+    <button class="top-btn" id="analyticsBtn">Analitik</button>
+    <button class="top-btn" id="guardBtn">Guard</button>
+    <button class="top-btn" id="settingsBtn">Ayarlar</button>
+    <button class="top-btn" id="modelsBtn" title="Agent bazlı model profilleri">Modeller</button>
+  </div>
   <span class="muted" id="clock"></span>
 </header>
 <div id="setupBanner" class="setup-banner" style="display:none">
@@ -176,6 +196,15 @@
   </div>
   <div class="modal-body">
     <div class="modal-hint" id="modelsHint">Her ajan için oturum modelini veya belirli bir modeli seç. Değişiklikler OMO config'e yazılır; OpenCode yeniden başlatılınca veya live refresh ile uygulanır.</div>
+    <div class="profile-controls" style="margin-bottom:8px">
+      <label class="muted">Preset</label>
+      <select id="presetSelect"><option value="session">session</option><option value="opencode-go">opencode-go</option></select>
+      <span class="profile-status" id="presetStatus"></span>
+      <label class="muted"><input type="checkbox" id="projectProfileToggle" /> Bu proje için</label>
+      <button class="top-btn" id="projectProfileReset" style="display:none">Proje profilini sıfırla</button>
+      <span class="spacer"></span>
+      <span class="muted">Test küçük bir istek gönderir.</span>
+    </div>
     <div class="model-filter"><input id="modelFilter" placeholder="Model ara..." /></div>
     <div id="profiles"><div class="empty">yükleniyor...</div></div>
   </div>
@@ -184,10 +213,62 @@
   <div class="modal-head">
     <h2 id="detailTitle">Oturum Detayı</h2>
     <span class="spacer"></span>
+    <input id="detailFilter" class="top-input" placeholder="Tool ara..." />
+    <label class="muted"><input type="checkbox" id="detailAuto" /> canlı</label>
+    <button class="top-btn" id="detailCopy">ID kopyala</button>
+    <button class="stop-btn" id="detailRetry" style="display:none">Yeniden dene</button>
     <button class="top-btn" id="detailRefresh">Yenile</button>
     <button class="top-btn" id="detailClose">Kapat</button>
   </div>
   <div class="modal-body" id="detailBody"><div class="empty">yükleniyor...</div></div>
+</dialog>
+<dialog id="settingsDialog" class="modal">
+  <div class="modal-head">
+    <h2>Ayarlar</h2>
+    <span class="spacer"></span>
+    <button class="top-btn" id="settingsClose">Kapat</button>
+  </div>
+  <div class="modal-body">
+    <div class="setting-row">
+      <label for="stuckSelect">Takılma eşiği</label>
+      <select id="stuckSelect">
+        <option value="600000">10 dakika</option>
+        <option value="900000">15 dakika</option>
+        <option value="1800000">30 dakika</option>
+        <option value="3600000">60 dakika</option>
+      </select>
+    </div>
+    <div class="setting-row">
+      <label for="autoStopToggle">Otomatik durdur</label>
+      <div><input type="checkbox" id="autoStopToggle" /> <span class="muted">Takılan görevi eşik + 5 dk sonra otomatik durdurur. Varsayılan kapalı.</span></div>
+    </div>
+    <div class="setting-row">
+      <label>Bildirimler</label>
+      <div class="row"><button class="top-btn" id="notifyBtn">Bildirim izni</button><span class="muted" id="notifyStatus"></span></div>
+    </div>
+    <div class="setting-row">
+      <label>Diagnostic</label>
+      <div class="row"><button class="top-btn" id="diagnosticBtn">JSON indir</button><span class="muted">Redakte edilmiş config/log özeti.</span></div>
+    </div>
+  </div>
+</dialog>
+<dialog id="analyticsDialog" class="modal">
+  <div class="modal-head">
+    <h2>Agent Analitiği</h2>
+    <span class="spacer"></span>
+    <button class="top-btn" id="analyticsRefresh">Yenile</button>
+    <button class="top-btn" id="analyticsClose">Kapat</button>
+  </div>
+  <div class="modal-body" id="analyticsBody"></div>
+</dialog>
+<dialog id="guardDialog" class="modal">
+  <div class="modal-head">
+    <h2>Board Guard Log</h2>
+    <span class="spacer"></span>
+    <button class="top-btn" id="guardRefresh">Yenile</button>
+    <button class="top-btn" id="guardClose">Kapat</button>
+  </div>
+  <div class="modal-body"><pre id="guardBody" class="log-pre">yükleniyor...</pre></div>
 </dialog>
 <script>
 const activeEl = document.getElementById("active");
@@ -212,10 +293,78 @@ const STUCK_MS = 15 * 60 * 1000;
 let state = { sessions: [], active: {}, agents: [], boards: [], projects: [], tasks: [], setup: {} };
 let filterMode = "active";
 let projectParam = new URLSearchParams(location.search).get("project") || "";
+const versionBadge = document.getElementById("versionBadge");
+const updateBadge = document.getElementById("updateBadge");
+const settingsDialog = document.getElementById("settingsDialog");
+const settingsClose = document.getElementById("settingsClose");
+const stuckSelect = document.getElementById("stuckSelect");
+const autoStopToggle = document.getElementById("autoStopToggle");
+const notifyBtn = document.getElementById("notifyBtn");
+const notifyStatus = document.getElementById("notifyStatus");
+const diagnosticBtn = document.getElementById("diagnosticBtn");
+const analyticsDialog = document.getElementById("analyticsDialog");
+const analyticsBody = document.getElementById("analyticsBody");
+const analyticsRefresh = document.getElementById("analyticsRefresh");
+const analyticsClose = document.getElementById("analyticsClose");
+const guardDialog = document.getElementById("guardDialog");
+const guardBody = document.getElementById("guardBody");
+const guardRefresh = document.getElementById("guardRefresh");
+const guardClose = document.getElementById("guardClose");
+const presetSelect = document.getElementById("presetSelect");
+const presetStatus = document.getElementById("presetStatus");
+const projectProfileToggle = document.getElementById("projectProfileToggle");
+const projectProfileReset = document.getElementById("projectProfileReset");
+const detailFilter = document.getElementById("detailFilter");
+const detailAuto = document.getElementById("detailAuto");
+const detailCopy = document.getElementById("detailCopy");
+const detailRetry = document.getElementById("detailRetry");
+const PANEL_TOKEN = document.querySelector('meta[name="panel-token"]')?.content || "";
+const SETTINGS_KEY = "ajanPanosu.settings";
 let modelCatalog = [];
 let modelProfiles = {};
 let activePreset = "";
 let detailSessionID = "";
+let detailTimer = null;
+let updateFetchedAt = 0;
+const notifyState = { first: true, notified: new Set(), autoStopped: new Set() };
+
+function loadSettings() {
+  let saved = {};
+  try {
+    saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
+  } catch {
+    saved = {};
+  }
+  const stuck = Number(saved.stuckMs);
+  return {
+    stuckMs: [600000, 900000, 1800000, 3600000].includes(stuck) ? stuck : 900000,
+    autoStop: saved.autoStop === true,
+    notifications: saved.notifications === true,
+  };
+}
+const settings = loadSettings();
+function saveSettings() {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+}
+async function panelPost(url, body) {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-panel-token": PANEL_TOKEN,
+    },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    if (response.status === 403 && /token/i.test(text)) {
+      alert("Panel oturumu yenilendi. Sayfa yeniden yüklenecek.");
+      location.reload();
+    }
+    throw new Error(text);
+  }
+  return response.json();
+}
 
 const roleFallback = {
   orchestrator: "Planlar, dağıtır, sonuçları birleştirir",
@@ -270,7 +419,7 @@ function statusFor(s){
   if(s.outcome==="succeeded") return {label:"bitti",cls:"done"};
   if(activeIds.has(s.id)){
     if(fresh) return {label:"çalışıyor",cls:"running"};
-    if(s.time?.updated && (Date.now()-s.time.updated)>STUCK_MS) return {label:"takıldı?",cls:"stuck"};
+    if(s.time?.updated && (Date.now()-s.time.updated)>settings.stuckMs) return {label:"takıldı?",cls:"stuck"};
     return {label:"bekliyor",cls:"waiting"};
   }
   if(fresh) return {label:"yeni",cls:"running"};
@@ -399,7 +548,7 @@ function renderBoards(){
   boardsEl.innerHTML=boards.map(board=>{
     const feature=(board.text||"").match(/\*\*Özellik:\*\*\s*(.+)/)?.[1]||"";
     const boardName=board.legacy?"current":(board.boardId||"board");
-    return '<section class="board-card"><div class="board-head"><span class="board-project">'+esc(board.project||"?")+'</span><span class="board-kind">'+esc(board.kind==="worktree"?"worktree":"ana proje")+'</span><span class="pill">'+esc(boardName)+'</span></div>'+
+    return '<section class="board-card"><div class="board-head"><span class="board-project">'+esc(board.project||"?")+'</span><span class="board-kind">'+esc(board.kind==="worktree"?"worktree":"ana proje")+'</span><span class="pill">'+esc(boardName)+'</span><span class="spacer"></span>'+(board.legacy?'':'<button class="top-btn" data-archive-board="'+esc(board.path||"")+'" data-board-name="'+esc(boardName)+'">Arşivle</button>')+'</div>'+
       '<div class="board-path" title="'+esc(board.path||"")+'">'+esc(board.path||"")+'</div>'+
       (feature?'<div class="board-feature">'+esc(feature)+'</div>':'')+
       boardTable(board)+'</section>';
@@ -419,14 +568,16 @@ function renderSummary(){
   const stuck=(state.tasks||[]).filter(t=>t.stuck).length;
   summaryEl.textContent="Görünen "+list.length+" oturum · toplam "+fmtTokens(input)+" in · "+fmtTokens(output)+" out · "+fmtCost(cost)+(stuck?" · "+stuck+" takılı görev":"");
 }
-function modelOptions(current){
+function modelOptionsFor(current,{session=false,none=false}={}){
   const groups=new Map();
   for(const model of modelCatalog){
     if(!model.tools) continue;
     if(!groups.has(model.providerID)) groups.set(model.providerID,[]);
     groups.get(model.providerID).push(model);
   }
-  let html='<option value="__session"'+(current==="__session"?" selected":"")+'>Oturum modeli (önerilen)</option>';
+  let html="";
+  if(session) html+='<option value="__session"'+(current==="__session"?" selected":"")+'>Oturum modeli (önerilen)</option>';
+  if(none) html+='<option value="__none"'+(current==="__none"?" selected":"")+'>Yedek yok</option>';
   for(const [provider,models] of [...groups.entries()].sort((a,b)=>a[0].localeCompare(b[0]))){
     html+='<optgroup label="'+esc(provider)+'">';
     for(const model of models.sort((a,b)=>a.name.localeCompare(b.name))){
@@ -436,11 +587,13 @@ function modelOptions(current){
     html+='</optgroup>';
   }
   const available=modelCatalog.filter(model=>model.tools);
-  if(current!=="__session" && !available.some(model=>model.id===current)){
+  if(current && current!=="__session" && current!=="__none" && !available.some(model=>model.id===current)){
     html+='<option value="'+esc(current)+'" selected>'+esc(current)+' (listede yok)</option>';
   }
   return html;
 }
+function modelOptions(current){ return modelOptionsFor(current,{session:true}); }
+function fallbackOptions(current){ return modelOptionsFor(current||"__none",{none:true}); }
 function variantOptions(modelID,currentVariant){
   const model=modelCatalog.find(item=>item.id===modelID);
   const variants=model?.variants||[];
@@ -457,20 +610,35 @@ function updateVariantSelects(){
     variant.innerHTML=variantOptions(modelID,current);
     variant.disabled=!modelID;
   });
+  document.querySelectorAll("[data-fallback-select]").forEach(select=>{
+    const agent=select.dataset.fallbackSelect;
+    const variant=document.querySelector('[data-fallback-variant="'+CSS.escape(agent)+'"]');
+    if(!variant) return;
+    const current=variant.value;
+    const modelID=select.value==="__none"?"":select.value;
+    variant.innerHTML=variantOptions(modelID,current);
+    variant.disabled=!modelID;
+  });
+  document.querySelectorAll("[data-test-profile]").forEach(button=>{
+    const agent=button.dataset.testProfile;
+    const select=document.querySelector('[data-model-select="'+CSS.escape(agent)+'"]');
+    button.disabled=select?.value==="__session" && !state.setup?.defaultModel;
+  });
 }
 function renderProfiles(){
   const agents=["orchestrator","oracle","explorer","designer","fixer","observer"];
   profilesEl.innerHTML=agents.map(agent=>{
     const info=agentInfo(agent); const name=info.name||agent;
-    const profile=modelProfiles[agent]||{mode:"session",model:null,variant:null};
+    const profile=modelProfiles[agent]||{mode:"session",model:null,variant:null,fallback:null};
     const current=profile.mode==="model"?profile.model:"__session";
+    const fallback=profile.fallback?.id||"__none";
+    const testDisabled=current==="__session" && !state.setup?.defaultModel;
     return '<div class="profile-row" data-profile-row="'+esc(agent)+'">'+
       '<img class="avatar" src="'+esc(avatarFor(agent))+'" alt="'+esc(name)+'" />'+
-      '<div><div class="profile-name">'+esc(name)+'</div><div class="profile-role">'+esc(roleFallback[agent]||"")+'</div></div>'+
-      '<select data-model-select="'+esc(agent)+'">'+modelOptions(current)+'</select>'+
-      '<select data-variant-select="'+esc(agent)+'">'+variantOptions(profile.model,profile.variant)+'</select>'+
-      '<div class="row"><button class="top-btn" data-save-profile="'+esc(agent)+'">Kaydet</button><span class="profile-status" data-profile-status="'+esc(agent)+'"></span></div>'+
-      '</div>';
+      '<div><div class="profile-name">'+esc(name)+'</div><div class="profile-role">'+esc(roleFallback[agent]||"")+'</div>'+
+        '<div class="profile-controls"><select data-model-select="'+esc(agent)+'">'+modelOptions(current)+'</select><select data-variant-select="'+esc(agent)+'">'+variantOptions(profile.model,profile.variant)+'</select><button class="top-btn" data-test-profile="'+esc(agent)+'"'+(testDisabled?" disabled":"")+'>Test</button><button class="top-btn" data-save-profile="'+esc(agent)+'">Kaydet</button><span class="profile-status" data-profile-status="'+esc(agent)+'"></span></div>'+
+        '<div class="profile-controls"><span class="muted">Yedek:</span><select data-fallback-select="'+esc(agent)+'">'+fallbackOptions(fallback)+'</select><select data-fallback-variant="'+esc(agent)+'">'+variantOptions(profile.fallback?.id,profile.fallback?.variant)+'</select></div>'+
+      '</div></div>';
   }).join("");
   updateVariantSelects();
 }
@@ -478,14 +646,20 @@ async function openModels(){
   if(!modelsDialog.open) modelsDialog.showModal();
   profilesEl.innerHTML='<div class="empty">yükleniyor...</div>';
   modelsPresetEl.textContent="";
+  presetStatus.textContent="";
   modelFilterEl.value="";
   try {
-    const r=await fetch("/api/models"); if(!r.ok) throw new Error(await r.text());
+    const project=projectProfileToggle.checked ? (state.project||"") : "";
+    const url="/api/models"+(project?"?project="+encodeURIComponent(project):"");
+    const r=await fetch(url); if(!r.ok) throw new Error(await r.text());
     const data=await r.json();
     modelCatalog=data.models||[];
     modelProfiles=data.profiles||{};
     activePreset=data.preset||"";
-    modelsPresetEl.textContent="preset: "+activePreset;
+    modelsPresetEl.textContent=data.projectProfile?"proje profili":"preset: "+activePreset;
+    presetSelect.disabled=Boolean(projectProfileToggle.checked);
+    projectProfileReset.style.display=(projectProfileToggle.checked && data.projectProfile)?"":"none";
+    if(!projectProfileToggle.checked) presetSelect.value=activePreset;
     renderProfiles();
     filterModelOptions("");
   } catch(e) {
@@ -495,22 +669,51 @@ async function openModels(){
 async function saveProfile(agent){
   const modelSelect=document.querySelector('[data-model-select="'+CSS.escape(agent)+'"]');
   const variantSelect=document.querySelector('[data-variant-select="'+CSS.escape(agent)+'"]');
+  const fallbackSelect=document.querySelector('[data-fallback-select="'+CSS.escape(agent)+'"]');
+  const fallbackVariant=document.querySelector('[data-fallback-variant="'+CSS.escape(agent)+'"]');
   const status=document.querySelector('[data-profile-status="'+CSS.escape(agent)+'"]');
   if(!modelSelect||!status) return;
   const mode=modelSelect.value==="__session"?"session":"model";
   const body={agent,mode};
+  if(projectProfileToggle.checked && state.project){
+    body.scope="project";
+    body.project=state.project;
+  }
   if(mode==="model"){
     body.model=modelSelect.value;
     if(variantSelect?.value) body.variant=variantSelect.value;
+    if(fallbackSelect?.value && fallbackSelect.value!=="__none" && fallbackSelect.value!==modelSelect.value){
+      body.fallback=fallbackSelect.value;
+      if(fallbackVariant?.value) body.fallbackVariant=fallbackVariant.value;
+    }
   }
   status.textContent="kaydediliyor..."; status.className="profile-status";
   try {
-    const r=await fetch("/api/profile",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
-    if(!r.ok) throw new Error(await r.text());
-    const data=await r.json();
+    const data=await panelPost("/api/profile",body);
     modelProfiles=data.profiles||modelProfiles;
     status.textContent=data.dryRun?"test modu":"kaydedildi"; status.className="profile-status ok";
     refresh();
+  } catch(e) {
+    status.textContent=e.message.slice(0,40); status.className="profile-status err";
+  }
+}
+async function testProfile(agent){
+  const modelSelect=document.querySelector('[data-model-select="'+CSS.escape(agent)+'"]');
+  const variantSelect=document.querySelector('[data-variant-select="'+CSS.escape(agent)+'"]');
+  const status=document.querySelector('[data-profile-status="'+CSS.escape(agent)+'"]');
+  if(!modelSelect||!status) return;
+  const model=modelSelect.value==="__session" ? (state.setup?.defaultModel||"") : modelSelect.value;
+  if(!model){ status.textContent="model yok"; status.className="profile-status err"; return; }
+  status.textContent="test ediliyor..."; status.className="profile-status";
+  try {
+    const result=await panelPost("/api/model-test",{model,variant:variantSelect?.value||null,project:state.project||null});
+    if(result.ok){
+      status.textContent="OK · "+Math.round((result.durationMs||0)/1000)+"sn";
+      status.className="profile-status ok";
+    } else {
+      status.textContent=(result.error||"hata").slice(0,40);
+      status.className="profile-status err";
+    }
   } catch(e) {
     status.textContent=e.message.slice(0,40); status.className="profile-status err";
   }
@@ -528,17 +731,186 @@ function filterModelOptions(query){
     });
   });
 }
-async function openDetail(sessionID){
+function openAnalytics(){
+  if(!analyticsDialog.open) analyticsDialog.showModal();
+  renderAnalytics();
+}
+function renderAnalytics(){
+  const rows=(state.analytics||[]).map(item=>'<tr><td class="agent">'+esc(item.agent)+'</td><td>'+item.sessions+'</td><td>'+item.succeeded+'</td><td>'+item.failed+'</td><td>'+item.interrupted+'</td><td>'+item.running+'</td><td>'+esc(fmtDuration(item.avgDurationMs))+'</td><td>'+esc(fmtTokens(item.tokens))+'</td><td>'+esc(fmtCost(item.cost))+'</td><td>'+item.stuckTasks+'</td></tr>').join("");
+  analyticsBody.innerHTML='<table class="analytics-table"><thead><tr><th>Ajan</th><th>Oturum</th><th>Bitti</th><th>Hata</th><th>İptal</th><th>Çalışan</th><th>Ort. süre</th><th>Token</th><th>Maliyet</th><th>Takılı</th></tr></thead><tbody>'+(rows||'<tr><td colspan="10" class="muted">Veri yok.</td></tr>')+'</tbody></table>';
+}
+async function openGuard(){
+  if(!guardDialog.open) guardDialog.showModal();
+  guardBody.textContent="yükleniyor...";
+  try {
+    const r=await fetch("/api/guard-log"); if(!r.ok) throw new Error(await r.text());
+    const data=await r.json();
+    guardBody.textContent=(data.lines||[]).join("\n")||"Guard log boş.";
+  } catch(e) {
+    guardBody.textContent="Alınamadı: "+e.message;
+  }
+}
+function openSettings(){
+  stuckSelect.value=String(settings.stuckMs);
+  autoStopToggle.checked=settings.autoStop;
+  notifyStatus.textContent=settings.notifications?"açık":"kapalı";
+  if(!settingsDialog.open) settingsDialog.showModal();
+}
+async function downloadDiagnostic(){
+  try {
+    const r=await fetch("/api/diagnostic"); if(!r.ok) throw new Error(await r.text());
+    const blob=await r.blob();
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download="ajan-panosu-diagnostic.json";
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+  } catch(e) {
+    alert("Diagnostic alınamadı: "+e.message);
+  }
+}
+async function archiveBoard(path,name){
+  const ok=confirm(name+" board'u arşivlensin mi?\n\nDosya .opencode/plans/archive/<ay>/boards/ altına taşınır ve aktif board listesinden kalkar.");
+  if(!ok) return;
+  try {
+    await panelPost("/api/archive-board",{path});
+    refresh();
+  } catch(e) {
+    alert("Arşivlenemedi: "+e.message);
+  }
+}
+async function copyText(text){
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    alert("Kopyalanamadı.");
+  }
+}
+async function retryTask(){
+  const description=detailRetry.dataset.description||"";
+  const ok=confirm("Takılan alt görev tekrar denensin mi?\n\nÜst oturuma yeni bir prompt gönderilir. Önce git status kontrol edilmeli.");
+  if(!ok) return;
+  try {
+    await panelPost("/api/retry",{sessionID:detailSessionID,description});
+    detailRetry.style.display="none";
+    openDetail(detailSessionID,true);
+  } catch(e) {
+    alert("Yeniden deneme başarısız: "+e.message);
+  }
+}
+function filterDetailTools(query){
+  const q=query.toLowerCase().trim();
+  document.querySelectorAll("#detailBody [data-tool-row]").forEach(row=>{
+    row.hidden=Boolean(q) && !row.innerText.toLowerCase().includes(q);
+  });
+}
+function lineageRows(sessionID){
+  const byId=new Map((state.sessions||[]).map(s=>[s.id,s]));
+  let root=byId.get(sessionID);
+  const seen=new Set();
+  while(root?.parentID && byId.has(root.parentID) && !seen.has(root.id)){
+    seen.add(root.id);
+    root=byId.get(root.parentID);
+  }
+  const children=new Map();
+  for(const s of (state.sessions||[])){
+    if(!s.parentID) continue;
+    if(!children.has(s.parentID)) children.set(s.parentID,[]);
+    children.get(s.parentID).push(s);
+  }
+  const rows=[];
+  const walk=(s,depth)=>{
+    if(!s||depth>5||rows.length>30) return;
+    rows.push({s,depth});
+    for(const child of (children.get(s.id)||[]).sort((a,b)=>(a.time?.created||0)-(b.time?.created||0))) walk(child,depth+1);
+  };
+  walk(root||byId.get(sessionID),0);
+  return rows;
+}
+function renderLineage(sessionID){
+  const rows=lineageRows(sessionID);
+  if(rows.length<=1) return "";
+  return '<h2 style="margin-top:12px">Oturum Ağacı</h2>'+rows.map(({s,depth})=>{
+    const st=statusFor(s);
+    return '<div class="tool-row" style="margin-left:'+(depth*14)+'px"><div class="row"><span class="agent-name">'+esc(s.agent||"?")+'</span><span class="badge '+st.cls+'">'+esc(st.label)+'</span><span class="pill">#'+esc(shortId(s.id))+'</span><span class="spacer"></span><button class="top-btn" data-detail-session="'+esc(s.id)+'">Detay</button></div><div class="tool-desc">'+esc(s.title||s.id)+'</div></div>';
+  }).join("");
+}
+function maybeNotifyAndAutoStop(){
+  if(notifyState.first){ notifyState.first=false; return; }
+  const canNotify=settings.notifications && "Notification" in window && Notification.permission==="granted";
+  for(const task of (state.tasks||[])){
+    if(!task.stuck) continue;
+    const key="task:"+task.id;
+    if(canNotify && !notifyState.notified.has(key)){
+      notifyState.notified.add(key);
+      try {
+        const n=new Notification("Görev takıldı: "+task.agent,{body:(task.description||task.tool)+"\n"+fmtDuration(task.elapsedMs)+" · "+task.sessionTitle});
+        n.onclick=()=>{ window.focus(); openDetail(task.sessionID); };
+      } catch {}
+    }
+    if(settings.autoStop && task.startedAt && Date.now()-task.startedAt>settings.stuckMs+300000 && !notifyState.autoStopped.has(task.sessionID)){
+      notifyState.autoStopped.add(task.sessionID);
+      panelPost("/api/interrupt",{sessionID:task.sessionID}).then(()=>{
+        if(canNotify){
+          try { new Notification("Otomatik durduruldu",{body:(task.description||task.tool)+" · "+task.sessionTitle}); } catch {}
+        }
+      }).catch(()=>{});
+    }
+  }
+  for(const s of (state.sessions||[])){
+    if(s.outcome!=="failed" && s.outcome!=="interrupted") continue;
+    const key="session:"+s.id+":"+s.outcome;
+    if(canNotify && !notifyState.notified.has(key)){
+      notifyState.notified.add(key);
+      try {
+        const n=new Notification((s.outcome==="failed"?"Oturum hatası":"Oturum iptal")+": "+(s.agent||"?"),{body:(s.title||s.id)+" · "+(state.project||"")});
+        n.onclick=()=>{ window.focus(); openDetail(s.id); };
+      } catch {}
+    }
+  }
+  for(const sessionID of [...notifyState.autoStopped]){
+    if(!(state.tasks||[]).some(task=>task.sessionID===sessionID && task.stuck)){
+      notifyState.autoStopped.delete(sessionID);
+    }
+  }
+}
+async function checkUpdate(){
+  if(Date.now()-updateFetchedAt<30*60*1000) return;
+  updateFetchedAt=Date.now();
+  try {
+    const r=await fetch("/api/update"); if(!r.ok) return;
+    const data=await r.json();
+    versionBadge.textContent="v"+(data.current||state.version||"?");
+    versionBadge.title=data.latest?("son sürüm: v"+data.latest):"";
+    if(data.updateAvailable && data.url){
+      updateBadge.style.display="";
+      updateBadge.href=data.url;
+      updateBadge.textContent="v"+data.latest+" hazır";
+    } else {
+      updateBadge.style.display="none";
+    }
+  } catch {}
+}
+async function openDetail(sessionID,silent=false){
   detailSessionID=sessionID;
+  if(!detailAuto.checked){ clearInterval(detailTimer); detailTimer=null; }
   if(!detailDialog.open) detailDialog.showModal();
-  detailTitle.textContent="Oturum Detayı";
-  detailBody.innerHTML='<div class="empty">yükleniyor...</div>';
+  if(!silent){
+    detailTitle.textContent="Oturum Detayı";
+    detailBody.innerHTML='<div class="empty">yükleniyor...</div>';
+    detailFilter.value="";
+    detailRetry.style.display="none";
+  }
   try {
     const r=await fetch("/api/session-detail?session="+encodeURIComponent(sessionID));
     if(!r.ok) throw new Error(await r.text());
     renderDetail(await r.json());
+    if(detailAuto.checked){
+      clearInterval(detailTimer);
+      detailTimer=setInterval(()=>{ if(detailDialog.open && detailSessionID) openDetail(detailSessionID,true); },2000);
+    }
   } catch(e) {
-    detailBody.innerHTML='<div class="empty">Detay alınamadı: '+esc(e.message)+'</div>';
+    if(!silent) detailBody.innerHTML='<div class="empty">Detay alınamadı: '+esc(e.message)+'</div>';
   }
 }
 function renderDetail(data){
@@ -548,13 +920,21 @@ function renderDetail(data){
   const input=tokens.input||0;
   const output=(tokens.output||0)+(tokens.reasoning||0);
   const activeIds=new Set(Object.keys(state.active||{}));
-  const stuck=activeIds.has(session.id) && session.updated && (Date.now()-session.updated)>STUCK_MS;
+  const stuck=activeIds.has(session.id) && session.updated && (Date.now()-session.updated)>settings.stuckMs;
   const outcomeLabel=session.outcome==="succeeded"?"bitti":session.outcome==="failed"?"hata":session.outcome==="interrupted"?"iptal":session.outcome||"çalışıyor";
+  const retryTool=(data.tools||[]).find(tool=>tool.name==="subagent" && tool.status!=="completed");
+  if(retryTool){
+    detailRetry.style.display="";
+    detailRetry.dataset.description=retryTool.description||"";
+  } else {
+    detailRetry.style.display="none";
+    detailRetry.dataset.description="";
+  }
   const toolRows=(data.tools||[]).map(tool=>{
     const cls=tool.status==="error"?"error":tool.status==="running"?"running":tool.status==="completed"?"completed":"";
-    return '<div class="tool-row"><div class="row"><span class="tool-name">'+esc(tool.name)+'</span><span class="tool-status '+cls+'">'+esc(tool.status)+'</span>'+(tool.agent?'<span class="pill">#'+esc(tool.agent)+'</span>':'')+'<span class="spacer"></span><span class="metric">'+esc(fmtDuration(tool.durationMs))+'</span></div>'+
+    return '<div class="tool-row" data-tool-row="1"><div class="row"><span class="tool-name">'+esc(tool.name)+'</span><span class="tool-status '+cls+'">'+esc(tool.status)+'</span>'+(tool.agent?'<span class="pill">#'+esc(tool.agent)+'</span>':'')+'<span class="spacer"></span><span class="metric">'+esc(fmtDuration(tool.durationMs))+'</span></div>'+
       '<div class="tool-desc">'+esc(tool.description||"")+'</div>'+
-      (tool.error?'<div class="tool-error">'+esc(tool.error)+'</div>':'')+
+      (tool.error?'<div class="tool-error">'+esc(tool.error)+' <button class="top-btn" data-copy="'+esc(tool.error)+'">Kopyala</button></div>':'')+
       '</div>';
   }).join("");
   detailBody.innerHTML='<div class="detail-grid">'+
@@ -568,15 +948,19 @@ function renderDetail(data){
     (session.error?'<div class="tool-error">'+esc(session.error)+'</div>':'')+
     (stuck?'<div class="row" style="margin-bottom:9px"><button class="stop-btn" data-stop-session="'+esc(session.id)+'" data-stop-label="'+esc(session.title||session.id)+'">Durdur</button></div>':'')+
     '<h2 style="margin-top:12px">Son Tool Çağrıları</h2>'+
-    (toolRows||'<div class="empty">Tool çağrısı yok.</div>');
+    (toolRows||'<div class="empty">Tool çağrısı yok.</div>')+
+    renderLineage(session.id);
 }
 async function refresh(){
   const activeScroll=activeEl.parentElement?.scrollTop||0;
   const boardScroll=boardsEl.parentElement?.scrollTop||0;
   try {
-    const query=projectParam?"?project="+encodeURIComponent(projectParam):"";
-    const r=await fetch("/api/state"+query); if(!r.ok) throw new Error("HTTP "+r.status);
+    const params=new URLSearchParams();
+    if(projectParam) params.set("project",projectParam);
+    params.set("stuckMs",String(settings.stuckMs));
+    const r=await fetch("/api/state?"+params.toString()); if(!r.ok) throw new Error("HTTP "+r.status);
     state=await r.json();
+    versionBadge.textContent="v"+(state.version||"?");
     const setup=state.setup||{};
     setupBanner.style.display=setup.hasModel?"none":"flex";
     setupBanner.title=setup.defaultModel?("Varsayılan model: "+setup.defaultModel):"OpenCode'da bir model seç";
@@ -590,6 +974,7 @@ async function refresh(){
     statusEl.textContent=running+" çalışıyor"+(waiting?" · "+waiting+" bekliyor":"")+(stuck?" · "+stuck+" takıldı?":"")+" · "+list.length+" oturum";
     clockEl.textContent=new Date().toLocaleTimeString("tr-TR");
     renderTasks(); renderActive(); renderBoards(); renderLegend(); renderSummary();
+    maybeNotifyAndAutoStop();
     if(activeEl.parentElement) activeEl.parentElement.scrollTop=activeScroll;
     if(boardsEl.parentElement) boardsEl.parentElement.scrollTop=boardScroll;
   } catch(e) {
@@ -601,9 +986,7 @@ async function stopSession(sessionID,label){
   const ok=confirm(label+"\n\nBu işlem sadece bu oturumun mevcut çalışmasını durdurur. Dosya silmez, board değiştirmez. Yarım kalan değişiklikler için tekrar çalıştırmadan önce git status kontrol et.\n\nDurdurulsun mu?");
   if(!ok) return;
   try {
-    const r=await fetch("/api/interrupt",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({sessionID})});
-    if(!r.ok) throw new Error(await r.text());
-    const result=await r.json();
+    const result=await panelPost("/api/interrupt",{sessionID});
     if(result.dryRun) alert("Test modu: oturum durdurulmadı.");
     refresh();
   } catch(e) {
@@ -615,20 +998,92 @@ document.addEventListener("click",event=>{
   if(stop){ stopSession(stop.dataset.stopSession,stop.dataset.stopLabel||"Oturum"); return; }
   const detail=event.target.closest("[data-detail-session]");
   if(detail){ openDetail(detail.dataset.detailSession); return; }
+  const archive=event.target.closest("[data-archive-board]");
+  if(archive){ archiveBoard(archive.dataset.archiveBoard,archive.dataset.boardName||"Board"); return; }
+  const copy=event.target.closest("[data-copy]");
+  if(copy){ copyText(copy.dataset.copy||""); return; }
   if(event.target.closest("[data-open-models]")){ openModels(); return; }
 });
 document.getElementById("modelsBtn").addEventListener("click",openModels);
 document.getElementById("modelsClose").addEventListener("click",()=>modelsDialog.close());
-document.getElementById("detailClose").addEventListener("click",()=>detailDialog.close());
+document.getElementById("detailClose").addEventListener("click",()=>{ clearInterval(detailTimer); detailTimer=null; detailDialog.close(); });
 document.getElementById("detailRefresh").addEventListener("click",()=>{ if(detailSessionID) openDetail(detailSessionID); });
 modelFilterEl.addEventListener("input",()=>filterModelOptions(modelFilterEl.value));
 profilesEl.addEventListener("change",event=>{
-  if(event.target.matches("[data-model-select]")) updateVariantSelects();
+  if(event.target.matches("[data-model-select]") || event.target.matches("[data-fallback-select]")) updateVariantSelects();
 });
 profilesEl.addEventListener("click",event=>{
+  const test=event.target.closest("[data-test-profile]");
+  if(test){ testProfile(test.dataset.testProfile); return; }
   const save=event.target.closest("[data-save-profile]");
   if(save) saveProfile(save.dataset.saveProfile);
 });
+presetSelect.addEventListener("change",async()=>{
+  const name=presetSelect.value;
+  presetStatus.textContent="değiştiriliyor..."; presetStatus.className="profile-status";
+  try {
+    const result=await panelPost("/api/preset",{preset:name});
+    modelProfiles=result.profiles||modelProfiles;
+    activePreset=result.preset||name;
+    modelsPresetEl.textContent="preset: "+activePreset;
+    presetStatus.textContent=result.dryRun?"test modu":"kaydedildi";
+    presetStatus.className="profile-status ok";
+    renderProfiles();
+    filterModelOptions(modelFilterEl.value);
+    refresh();
+  } catch(e) {
+    presetStatus.textContent=e.message.slice(0,40);
+    presetStatus.className="profile-status err";
+  }
+});
+projectProfileToggle.addEventListener("change",()=>openModels());
+projectProfileReset.addEventListener("click",async()=>{
+  if(!state.project) return;
+  const ok=confirm("Bu projenin model profili silinsin mi?\n\nGlobal profil kullanilacak.");
+  if(!ok) return;
+  try {
+    await panelPost("/api/project-profile/reset",{project:state.project});
+    await openModels();
+    refresh();
+  } catch(e) {
+    alert("Proje profili sifirlanamadi: "+e.message);
+  }
+});
+document.getElementById("settingsBtn").addEventListener("click",openSettings);
+settingsClose.addEventListener("click",()=>settingsDialog.close());
+stuckSelect.addEventListener("change",()=>{
+  settings.stuckMs=Number(stuckSelect.value)||900000;
+  saveSettings();
+  refresh();
+});
+autoStopToggle.addEventListener("change",()=>{
+  settings.autoStop=autoStopToggle.checked;
+  saveSettings();
+});
+notifyBtn.addEventListener("click",async()=>{
+  if(!("Notification" in window)){ notifyStatus.textContent="desteklenmiyor"; return; }
+  const permission=await Notification.requestPermission();
+  settings.notifications=permission==="granted";
+  saveSettings();
+  notifyStatus.textContent=permission;
+});
+diagnosticBtn.addEventListener("click",downloadDiagnostic);
+analyticsBtn.addEventListener("click",openAnalytics);
+analyticsClose.addEventListener("click",()=>analyticsDialog.close());
+analyticsRefresh.addEventListener("click",renderAnalytics);
+guardBtn.addEventListener("click",openGuard);
+guardClose.addEventListener("click",()=>guardDialog.close());
+guardRefresh.addEventListener("click",openGuard);
+detailFilter.addEventListener("input",()=>filterDetailTools(detailFilter.value));
+detailAuto.addEventListener("change",()=>{
+  clearInterval(detailTimer);
+  detailTimer=null;
+  if(detailAuto.checked && detailSessionID){
+    detailTimer=setInterval(()=>{ if(detailDialog.open && detailSessionID) openDetail(detailSessionID,true); },2000);
+  }
+});
+detailCopy.addEventListener("click",()=>copyText(detailSessionID));
+detailRetry.addEventListener("click",retryTask);
 projectSelect.addEventListener("change",()=>{
   projectParam=projectSelect.value;
   const url=new URL(location.href);
@@ -644,7 +1099,9 @@ document.querySelectorAll(".filter").forEach(button=>{
   });
 });
 refresh();
+checkUpdate();
 setInterval(refresh, 1200);
+setInterval(checkUpdate, 30 * 60 * 1000);
 </script>
 </body>
 </html>

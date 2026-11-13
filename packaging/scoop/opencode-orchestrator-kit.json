@@ -1,0 +1,16 @@
+{
+  "version": "__VERSION__",
+  "description": "One-click Windows setup for OpenCode + OMO-slim + Ajan Panosu + board guard",
+  "homepage": "https://github.com/trpamuk/opencode-orchestrator-kit",
+  "license": "MIT",
+  "url": "__URL__",
+  "hash": "__SHA256__",
+  "extract_dir": "",
+  "bin": [
+    [
+      "install.cmd",
+      "opencode-orchestrator-kit-install"
+    ]
+  ],
+  "notes": "Run 'opencode-orchestrator-kit-install' once. The kit configures OpenCode, OMO-slim and the local dashboard."
+}

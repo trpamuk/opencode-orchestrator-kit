@@ -1,0 +1,23 @@
+PackageIdentifier: trpamuk.OpenCodeOrchestratorKit
+PackageVersion: __VERSION__
+PackageName: OpenCode Orchestrator Kit
+Publisher: trpamuk
+License: MIT
+ShortDescription: One-click Windows setup for OpenCode + OMO-slim + Ajan Panosu + board guard
+Moniker: opencode-orchestrator-kit
+Tags:
+  - opencode
+  - ai-agents
+  - orchestration
+  - dashboard
+Installers:
+  - Architecture: x64
+    InstallerType: zip
+    InstallerUrl: __URL__
+    InstallerSha256: __SHA256__
+    NestedInstallerType: portable
+    NestedInstallerFiles:
+      - RelativeFilePath: install.cmd
+        PortableCommandAlias: opencode-orchestrator-kit
+ManifestType: singleton
+ManifestVersion: 1.6.0

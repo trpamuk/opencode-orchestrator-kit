@@ -1,4 +1,5 @@
 ﻿import http from "node:http";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
@@ -29,6 +30,15 @@ const PROFILE_AGENTS = [
   "fixer",
   "observer",
 ];
+const PANEL_TOKEN = crypto.randomBytes(24).toString("hex");
+const VERSION_FILE = path.join(__dirname, "VERSION");
+const PANEL_VERSION = fs.existsSync(VERSION_FILE)
+  ? fs.readFileSync(VERSION_FILE, "utf8").trim()
+  : "dev";
+const GITHUB_REPO = "trpamuk/opencode-orchestrator-kit";
+const UPDATE_CACHE_MS = 60 * 60 * 1000;
+const GUARD_LOG = path.join(__dirname, "guard.log");
+let updateCache = { at: 0, data: null };
 
 const CONTENT_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -110,13 +120,17 @@ async function upstream(pathname, timeoutMs = 15000) {
   return JSON.parse(text);
 }
 
-async function upstreamPost(pathname, timeoutMs = 15000) {
+async function upstreamJson(method, pathname, body, timeoutMs = 15000) {
   const url = cached.url || (cached.url = resolveServerUrl());
   let response;
   try {
     response = await fetch(url + pathname, {
-      method: "POST",
-      headers: { Authorization: authHeader() },
+      method,
+      headers: {
+        Authorization: authHeader(),
+        ...(body !== undefined ? { "content-type": "application/json" } : {}),
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
       signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (error) {
@@ -131,6 +145,76 @@ async function upstreamPost(pathname, timeoutMs = 15000) {
     throw error;
   }
   return text ? JSON.parse(text) : {};
+}
+
+async function upstreamPost(pathname, timeoutMs = 15000) {
+  return upstreamJson("POST", pathname, undefined, timeoutMs);
+}
+
+async function upstreamDelete(pathname, timeoutMs = 15000) {
+  return upstreamJson("DELETE", pathname, undefined, timeoutMs);
+}
+
+function compareVersions(a, b) {
+  const left = String(a || "")
+    .split(".")
+    .map((part) => parseInt(part, 10) || 0);
+  const right = String(b || "")
+    .split(".")
+    .map((part) => parseInt(part, 10) || 0);
+  for (let index = 0; index < Math.max(left.length, right.length); index += 1) {
+    const delta = (left[index] || 0) - (right[index] || 0);
+    if (delta !== 0) return delta;
+  }
+  return 0;
+}
+
+async function checkUpdate() {
+  if (Date.now() - updateCache.at < UPDATE_CACHE_MS) return updateCache.data;
+  try {
+    const response = await fetch(
+      `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`,
+      {
+        headers: {
+          "user-agent": "ajan-panosu",
+          accept: "application/vnd.github+json",
+        },
+        signal: AbortSignal.timeout(8000),
+      },
+    );
+    if (!response.ok) throw new Error(`GitHub ${response.status}`);
+    const release = await response.json();
+    const latest = String(release.tag_name || "").replace(/^v/, "");
+    const data = {
+      current: PANEL_VERSION,
+      latest,
+      updateAvailable: compareVersions(latest, PANEL_VERSION) > 0,
+      url: release.html_url || null,
+      publishedAt: release.published_at || null,
+      name: release.name || null,
+    };
+    updateCache = { at: Date.now(), data };
+    return data;
+  } catch (error) {
+    const data = {
+      current: PANEL_VERSION,
+      latest: null,
+      updateAvailable: false,
+      error: String(error.message || error),
+    };
+    updateCache = { at: Date.now(), data };
+    return data;
+  }
+}
+
+function isPanelTokenValid(req) {
+  return req.headers["x-panel-token"] === PANEL_TOKEN;
+}
+
+function parseStuckMs(url) {
+  const value = Number(url.searchParams.get("stuckMs"));
+  if (!Number.isFinite(value) || value < 60000) return STUCK_MS;
+  return Math.min(value, 24 * 60 * 60 * 1000);
 }
 
 function isAllowedOrigin(req) {
@@ -183,7 +267,7 @@ function attachProjectDirs(sessions) {
   return sessions;
 }
 
-function taskFromPart(session, message, part) {
+function taskFromPart(session, message, part, stuckMs = STUCK_MS) {
   if (part.type !== "tool") return null;
   if (part.name !== "subagent" && part.name !== "task") return null;
   const state = part.state || {};
@@ -196,7 +280,7 @@ function taskFromPart(session, message, part) {
   const status = state.status || "unknown";
   const running = status === "running";
   const stuck = Boolean(
-    running && startedAt && Date.now() - startedAt > STUCK_MS,
+    running && startedAt && Date.now() - startedAt > stuckMs,
   );
   const description = String(input.description || input.prompt || "")
     .replace(/\s+/g, " ")
@@ -223,11 +307,11 @@ function taskFromPart(session, message, part) {
   };
 }
 
-function tasksFromMessages(session, messages) {
+function tasksFromMessages(session, messages, stuckMs = STUCK_MS) {
   const tasks = [];
   for (const message of messages) {
     for (const part of message.content || message.parts || []) {
-      const task = taskFromPart(session, message, part);
+      const task = taskFromPart(session, message, part, stuckMs);
       if (task) tasks.push(task);
     }
   }
@@ -236,12 +320,13 @@ function tasksFromMessages(session, messages) {
 
 const taskCache = new Map();
 
-async function fetchSessionTasks(session) {
+async function fetchSessionTasks(session, stuckMs = STUCK_MS) {
   const updated = session.time?.updated || 0;
   const cached = taskCache.get(session.id);
   if (
     cached &&
     cached.updated === updated &&
+    cached.stuckMs === stuckMs &&
     Date.now() - cached.at < TASK_CACHE_MS
   ) {
     return cached.tasks;
@@ -252,16 +337,16 @@ async function fetchSessionTasks(session) {
       TASK_FETCH_TIMEOUT_MS,
     );
     const messages = Array.isArray(response) ? response : response.data || [];
-    const tasks = tasksFromMessages(session, messages);
-    taskCache.set(session.id, { at: Date.now(), updated, tasks });
+    const tasks = tasksFromMessages(session, messages, stuckMs);
+    taskCache.set(session.id, { at: Date.now(), updated, stuckMs, tasks });
     return tasks;
   } catch {
-    taskCache.set(session.id, { at: Date.now(), updated, tasks: [] });
+    taskCache.set(session.id, { at: Date.now(), updated, stuckMs, tasks: [] });
     return [];
   }
 }
 
-async function collectTasks(sessions, activeMap) {
+async function collectTasks(sessions, activeMap, stuckMs = STUCK_MS) {
   const activeIds = new Set(Object.keys(activeMap || {}));
   const now = Date.now();
   const candidates = sessions
@@ -277,7 +362,9 @@ async function collectTasks(sessions, activeMap) {
     })
     .sort((a, b) => (b.time?.updated || 0) - (a.time?.updated || 0))
     .slice(0, TASK_MAX_SESSIONS);
-  const results = await Promise.allSettled(candidates.map(fetchSessionTasks));
+  const results = await Promise.allSettled(
+    candidates.map((session) => fetchSessionTasks(session, stuckMs)),
+  );
   const tasks = results.flatMap((result) =>
     result.status === "fulfilled" ? result.value : [],
   );
@@ -420,25 +507,36 @@ function activePreset(config) {
   return { name, preset };
 }
 
+function normalizeModelEntry(entry) {
+  if (typeof entry === "string") return { id: entry, variant: null };
+  if (entry && typeof entry === "object" && entry.id) {
+    return { id: entry.id, variant: entry.variant || null };
+  }
+  return null;
+}
+
 function profileForEntry(entry) {
-  if (!entry || typeof entry !== "object") {
-    return { mode: "session", model: null, variant: null };
+  if (
+    !entry ||
+    typeof entry !== "object" ||
+    entry.inheritModelFrom === "session"
+  ) {
+    return { mode: "session", model: null, variant: null, fallback: null };
   }
-  if (entry.inheritModelFrom === "session") {
-    return { mode: "session", model: null, variant: null };
+  const models = (
+    Array.isArray(entry.model) ? entry.model : [entry.model]
+  )
+    .map(normalizeModelEntry)
+    .filter(Boolean);
+  if (!models.length) {
+    return { mode: "session", model: null, variant: null, fallback: null };
   }
-  const first = Array.isArray(entry.model) ? entry.model[0] : entry.model;
-  if (typeof first === "string") {
-    return { mode: "model", model: first, variant: entry.variant || null };
-  }
-  if (first && typeof first === "object" && first.id) {
-    return {
-      mode: "model",
-      model: first.id,
-      variant: first.variant || entry.variant || null,
-    };
-  }
-  return { mode: "session", model: null, variant: null };
+  return {
+    mode: "model",
+    model: models[0].id,
+    variant: models[0].variant || entry.variant || null,
+    fallback: models[1] || null,
+  };
 }
 
 function profilesFromConfig(config) {
@@ -454,7 +552,14 @@ function getProfiles() {
   return profilesFromConfig(readOmoConfig());
 }
 
-async function setProfile(agent, mode, modelID, variant) {
+async function setProfile(
+  agent,
+  mode,
+  modelID,
+  variant,
+  fallbackID,
+  fallbackVariant,
+) {
   if (!PROFILE_AGENTS.includes(agent)) {
     const error = new Error(`unknown agent: ${agent}`);
     error.status = 400;
@@ -489,6 +594,19 @@ async function setProfile(agent, mode, modelID, variant) {
       chosen.variant = variant;
     }
     entry.model = [chosen];
+    if (fallbackID && fallbackID !== modelID) {
+      const fallback = catalog.models.find((item) => item.id === fallbackID);
+      if (!fallback) {
+        const error = new Error(`unknown fallback model: ${fallbackID}`);
+        error.status = 400;
+        throw error;
+      }
+      const chosenFallback = { id: fallback.id };
+      if (fallbackVariant && fallback.variants.includes(fallbackVariant)) {
+        chosenFallback.variant = fallbackVariant;
+      }
+      entry.model.push(chosenFallback);
+    }
     delete entry.variant;
   }
   preset[agent] = entry;
@@ -510,6 +628,202 @@ async function getSetup() {
     preset = null;
   }
   return { hasModel: Boolean(defaultModel), defaultModel, preset };
+}
+
+function setPreset(name) {
+  if (name !== "session" && name !== "opencode-go") {
+    const error = new Error("unknown preset");
+    error.status = 400;
+    throw error;
+  }
+  const config = readOmoConfig();
+  if (!config.presets?.[name]) {
+    const error = new Error(`preset not found: ${name}`);
+    error.status = 400;
+    throw error;
+  }
+  config.preset = name;
+  if (process.env.AGENT_BOARD_PROFILE_DRY_RUN !== "1") {
+    writeOmoConfig(config);
+  }
+  return {
+    dryRun: process.env.AGENT_BOARD_PROFILE_DRY_RUN === "1",
+    ...profilesFromConfig(config),
+  };
+}
+
+function projectConfigPath(project) {
+  const dir = path.resolve(String(project || ""));
+  if (!project || !fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) {
+    const error = new Error("project directory not found");
+    error.status = 400;
+    throw error;
+  }
+  return path.join(dir, ".opencode", "oh-my-opencode-slim.json");
+}
+
+function projectPresetName(project) {
+  return (
+    "project-" +
+    crypto
+      .createHash("sha1")
+      .update(path.resolve(project).toLowerCase())
+      .digest("hex")
+      .slice(0, 8)
+  );
+}
+
+function readProjectConfig(project) {
+  const file = projectConfigPath(project);
+  if (!fs.existsSync(file)) return { file, config: null };
+  try {
+    return {
+      file,
+      config: JSON.parse(fs.readFileSync(file, "utf8").replace(/^\uFEFF/, "")),
+    };
+  } catch {
+    const error = new Error("project OMO config is invalid");
+    error.status = 409;
+    throw error;
+  }
+}
+
+function profilesFromPreset(presetName, preset) {
+  const profiles = {};
+  for (const agent of PROFILE_AGENTS) {
+    profiles[agent] = profileForEntry(preset[agent]);
+  }
+  return { preset: presetName, profiles };
+}
+
+function getProfilesForProject(project) {
+  if (!project) return { ...getProfiles(), projectProfile: false, project: null };
+  const { config } = readProjectConfig(project);
+  if (!config || !config.preset || !config.presets?.[config.preset]) {
+    return {
+      ...getProfiles(),
+      projectProfile: false,
+      project: path.resolve(project),
+    };
+  }
+  return {
+    ...profilesFromPreset(config.preset, config.presets[config.preset]),
+    projectProfile: true,
+    project: path.resolve(project),
+  };
+}
+
+async function setProjectProfile(
+  project,
+  agent,
+  mode,
+  modelID,
+  variant,
+  fallbackID,
+  fallbackVariant,
+) {
+  if (!PROFILE_AGENTS.includes(agent)) {
+    const error = new Error(`unknown agent: ${agent}`);
+    error.status = 400;
+    throw error;
+  }
+  if (mode !== "session" && mode !== "model") {
+    const error = new Error("mode must be session or model");
+    error.status = 400;
+    throw error;
+  }
+  const globalConfig = readOmoConfig();
+  const { preset: globalPreset } = activePreset(globalConfig);
+  const cloned = JSON.parse(JSON.stringify(globalPreset));
+  const entry =
+    cloned[agent] && typeof cloned[agent] === "object"
+      ? { ...cloned[agent] }
+      : {};
+  if (mode === "session") {
+    delete entry.model;
+    delete entry.variant;
+    entry.inheritModelFrom = "session";
+  } else {
+    const catalog = await fetchModelCatalog();
+    const model = catalog.models.find((item) => item.id === modelID);
+    if (!model) {
+      const error = new Error(`unknown model: ${modelID}`);
+      error.status = 400;
+      throw error;
+    }
+    delete entry.inheritModelFrom;
+    const chosen = { id: model.id };
+    if (variant && model.variants.includes(variant)) {
+      chosen.variant = variant;
+    }
+    entry.model = [chosen];
+    if (fallbackID && fallbackID !== modelID) {
+      const fallback = catalog.models.find((item) => item.id === fallbackID);
+      if (!fallback) {
+        const error = new Error(`unknown fallback model: ${fallbackID}`);
+        error.status = 400;
+        throw error;
+      }
+      const chosenFallback = { id: fallback.id };
+      if (fallbackVariant && fallback.variants.includes(fallbackVariant)) {
+        chosenFallback.variant = fallbackVariant;
+      }
+      entry.model.push(chosenFallback);
+    }
+    delete entry.variant;
+  }
+  cloned[agent] = entry;
+  const name = projectPresetName(project);
+  const config = {
+    $schema:
+      "https://unpkg.com/oh-my-opencode-slim@3.0.7/oh-my-opencode-slim.schema.json",
+    preset: name,
+    presets: { [name]: cloned },
+  };
+  const { file } = readProjectConfig(project);
+  if (process.env.AGENT_BOARD_PROFILE_DRY_RUN !== "1") {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    if (fs.existsSync(file)) {
+      const backupRoot = path.join(
+        path.dirname(file),
+        "backups",
+        `${new Date().toISOString().replace(/[:.]/g, "-")}-profile`,
+      );
+      fs.mkdirSync(backupRoot, { recursive: true });
+      fs.copyFileSync(
+        file,
+        path.join(backupRoot, "oh-my-opencode-slim.json"),
+      );
+    }
+    fs.writeFileSync(file, JSON.stringify(config, null, 2) + "\n", "utf8");
+  }
+  return {
+    dryRun: process.env.AGENT_BOARD_PROFILE_DRY_RUN === "1",
+    ...profilesFromPreset(name, cloned),
+    projectProfile: true,
+    project: path.resolve(project),
+  };
+}
+
+function resetProjectProfile(project) {
+  const { file } = readProjectConfig(project);
+  if (fs.existsSync(file) && process.env.AGENT_BOARD_PROFILE_DRY_RUN !== "1") {
+    const backupRoot = path.join(
+      path.dirname(file),
+      "backups",
+      `${new Date().toISOString().replace(/[:.]/g, "-")}-profile-reset`,
+    );
+    fs.mkdirSync(backupRoot, { recursive: true });
+    fs.copyFileSync(file, path.join(backupRoot, "oh-my-opencode-slim.json"));
+    fs.rmSync(file, { force: true });
+  }
+  return {
+    ok: true,
+    dryRun: process.env.AGENT_BOARD_PROFILE_DRY_RUN === "1",
+    ...getProfiles(),
+    projectProfile: false,
+    project: path.resolve(project),
+  };
 }
 
 function toolDescription(name, input) {
@@ -606,6 +920,263 @@ async function getSessionDetail(sessionID) {
     },
     tools: tools.slice(0, 30),
     errors: errors.slice(0, 10),
+  };
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function extractAssistantText(messages) {
+  for (const message of messages) {
+    if (message.type !== "assistant") continue;
+    const parts = message.content || message.parts || [];
+    const text = parts
+      .filter((part) => part.type === "text" && part.text)
+      .map((part) => part.text)
+      .join(" ")
+      .trim();
+    if (text) return text.slice(0, 240);
+  }
+  return null;
+}
+
+async function testModel(modelID, variant, project) {
+  const catalog = await fetchModelCatalog();
+  const model = catalog.models.find((item) => item.id === modelID);
+  if (!model) {
+    const error = new Error(`unknown model: ${modelID}`);
+    error.status = 400;
+    throw error;
+  }
+  const directory =
+    project && fs.existsSync(project) ? project : process.cwd();
+  const started = Date.now();
+  let sessionID = null;
+  try {
+    const created = await upstreamJson(
+      "POST",
+      "/api/session",
+      {
+        title: "Ajan Panosu model test",
+        agent: "build",
+        model: {
+          id: model.modelID,
+          providerID: model.providerID,
+          ...(variant && model.variants.includes(variant) ? { variant } : {}),
+        },
+        location: { directory },
+      },
+      15000,
+    );
+    const session = created.data || created;
+    sessionID = session.id;
+    if (!sessionID) throw new Error("session id alinamadi");
+    await upstreamJson(
+      "POST",
+      `/api/session/${encodeURIComponent(sessionID)}/prompt`,
+      { text: "Yalnızca OK yaz.", resume: true },
+      10000,
+    );
+    let reply = null;
+    for (let attempt = 0; attempt < 90; attempt += 1) {
+      await sleep(500);
+      const response = await upstream(
+        `/api/session/${encodeURIComponent(sessionID)}/message?limit=10`,
+        8000,
+      );
+      const messages = Array.isArray(response) ? response : response.data || [];
+      reply = extractAssistantText(messages);
+      if (reply) break;
+    }
+    return {
+      ok: Boolean(reply),
+      model: model.id,
+      variant: variant || null,
+      reply,
+      durationMs: Date.now() - started,
+      tools: model.tools,
+      vision: model.vision,
+    };
+  } finally {
+    if (sessionID) {
+      await upstreamDelete(
+        `/api/session/${encodeURIComponent(sessionID)}`,
+        8000,
+      ).catch(() => {});
+    }
+  }
+}
+
+function buildAnalytics(sessions, tasks, activeIds) {
+  const map = new Map();
+  const ensure = (agent) => {
+    if (!map.has(agent)) {
+      map.set(agent, {
+        agent,
+        sessions: 0,
+        succeeded: 0,
+        failed: 0,
+        interrupted: 0,
+        running: 0,
+        tokens: 0,
+        cost: 0,
+        durationMs: 0,
+        stuckTasks: 0,
+      });
+    }
+    return map.get(agent);
+  };
+  for (const session of sessions) {
+    const item = ensure(session.agent || "?");
+    item.sessions += 1;
+    if (session.outcome === "succeeded") item.succeeded += 1;
+    else if (session.outcome === "failed") item.failed += 1;
+    else if (session.outcome === "interrupted") item.interrupted += 1;
+    else if (activeIds.has(session.id)) item.running += 1;
+    const tokens = session.tokens || {};
+    item.tokens +=
+      (tokens.input || 0) + (tokens.output || 0) + (tokens.reasoning || 0);
+    item.cost += Number(session.cost) || 0;
+    if (session.time?.created && session.time?.updated) {
+      item.durationMs += Math.max(0, session.time.updated - session.time.created);
+    }
+  }
+  for (const task of tasks) {
+    if (!task.stuck) continue;
+    ensure(task.sessionAgent || "?").stuckTasks += 1;
+  }
+  return [...map.values()]
+    .map((item) => ({
+      ...item,
+      avgDurationMs: item.sessions
+        ? Math.round(item.durationMs / item.sessions)
+        : 0,
+    }))
+    .sort((a, b) => b.sessions - a.sessions);
+}
+
+function readGuardLog(limit = 200) {
+  if (!fs.existsSync(GUARD_LOG)) return { path: GUARD_LOG, lines: [] };
+  const lines = fs
+    .readFileSync(GUARD_LOG, "utf8")
+    .replace(/^\uFEFF/, "")
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .slice(-limit)
+    .map((line) => redact(line, 500));
+  return { path: GUARD_LOG, lines };
+}
+
+function archiveBoard(boardPath) {
+  const resolved = path.resolve(String(boardPath || ""));
+  const marker = `${path.sep}.opencode${path.sep}plans${path.sep}boards${path.sep}`;
+  const index = resolved.toLowerCase().lastIndexOf(marker.toLowerCase());
+  if (index <= 0) {
+    const error = new Error("board path is not under .opencode/plans/boards");
+    error.status = 400;
+    throw error;
+  }
+  if (!resolved.toLowerCase().endsWith(".md")) {
+    const error = new Error("board must be a markdown file");
+    error.status = 400;
+    throw error;
+  }
+  if (!fs.existsSync(resolved)) {
+    const error = new Error("board not found");
+    error.status = 404;
+    throw error;
+  }
+  const projectDir = resolved.slice(0, index);
+  const month = new Date().toISOString().slice(0, 7);
+  const archiveDir = path.join(
+    projectDir,
+    ".opencode",
+    "plans",
+    "archive",
+    month,
+    "boards",
+  );
+  fs.mkdirSync(archiveDir, { recursive: true });
+  const target = path.join(archiveDir, path.basename(resolved));
+  if (fs.existsSync(target)) {
+    const error = new Error("archive target already exists");
+    error.status = 409;
+    throw error;
+  }
+  fs.renameSync(resolved, target);
+  const readme = path.join(path.dirname(archiveDir), "README.md");
+  const line = `- ${path.basename(resolved, ".md")}: panelden arsivlendi (${new Date().toISOString().slice(0, 10)})`;
+  if (fs.existsSync(readme)) {
+    fs.appendFileSync(readme, `\n${line}\n`, "utf8");
+  } else {
+    fs.writeFileSync(readme, `# Arsiv\n\n${line}\n`, "utf8");
+  }
+  return { ok: true, archived: target, project: projectDir };
+}
+
+async function getDiagnostic() {
+  const setup = await getSetup();
+  let profiles = null;
+  try {
+    profiles = getProfiles();
+  } catch {
+    profiles = null;
+  }
+  let omoConfig = null;
+  try {
+    omoConfig = readOmoConfig();
+  } catch {
+    omoConfig = null;
+  }
+  let opencodeConfig = null;
+  try {
+    const raw = fs
+      .readFileSync(path.join(CONFIG_DIR, "opencode.json"), "utf8")
+      .replace(/^\uFEFF/, "");
+    const config = JSON.parse(raw);
+    opencodeConfig = {
+      model: config.model || null,
+      default_agent: config.default_agent || null,
+      plugins: config.plugins || [],
+    };
+  } catch {
+    opencodeConfig = null;
+  }
+  const logDir = path.join(HOME, ".local", "share", "opencode", "log");
+  const logTails = {};
+  try {
+    const names = ["opencode.log"];
+    const omoLogs = fs
+      .readdirSync(logDir)
+      .filter((name) => name.startsWith("oh-my-opencode-slim."))
+      .sort();
+    if (omoLogs.length) names.push(omoLogs[omoLogs.length - 1]);
+    for (const name of names) {
+      const file = path.join(logDir, name);
+      if (!fs.existsSync(file)) continue;
+      logTails[name] = fs
+        .readFileSync(file, "utf8")
+        .split(/\r?\n/)
+        .slice(-100)
+        .map((line) => redact(line, 500));
+    }
+  } catch {
+    // Logs are optional in the diagnostic bundle.
+  }
+  return {
+    generatedAt: new Date().toISOString(),
+    version: PANEL_VERSION,
+    platform: process.platform,
+    node: process.version,
+    cwd: process.cwd(),
+    configDir: CONFIG_DIR,
+    setup,
+    profiles,
+    omoConfig,
+    opencodeConfig,
+    guardLog: readGuardLog(100).lines,
+    logTails,
   };
 }
 
@@ -793,11 +1364,14 @@ const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url || "/", "http://127.0.0.1");
     if (url.pathname === "/" || url.pathname === "/index.html") {
+      const html = fs
+        .readFileSync(INDEX_HTML, "utf8")
+        .replaceAll("__PANEL_TOKEN__", PANEL_TOKEN);
       res.writeHead(200, {
         "content-type": "text/html; charset=utf-8",
         "cache-control": "no-store",
       });
-      res.end(fs.readFileSync(INDEX_HTML));
+      res.end(html);
       return;
     }
     if (url.pathname.startsWith("/assets/")) {
@@ -813,6 +1387,11 @@ const server = http.createServer(async (req, res) => {
       if (!isAllowedOrigin(req)) {
         res.writeHead(403, { "content-type": "text/plain; charset=utf-8" });
         res.end("forbidden origin");
+        return;
+      }
+      if (!isPanelTokenValid(req)) {
+        res.writeHead(403, { "content-type": "text/plain; charset=utf-8" });
+        res.end("forbidden token");
         return;
       }
       let body;
@@ -882,12 +1461,13 @@ const server = http.createServer(async (req, res) => {
         "content-type": "application/json; charset=utf-8",
         "cache-control": "no-store",
       });
-      res.end(JSON.stringify(setup));
+      res.end(JSON.stringify({ ...setup, version: PANEL_VERSION }));
       return;
     }
     if (url.pathname === "/api/models") {
       const catalog = await fetchModelCatalog();
-      const profiles = getProfiles();
+      const project = url.searchParams.get("project") || null;
+      const profiles = getProfilesForProject(project);
       res.writeHead(200, {
         "content-type": "application/json; charset=utf-8",
         "cache-control": "no-store",
@@ -912,6 +1492,11 @@ const server = http.createServer(async (req, res) => {
         res.end("forbidden origin");
         return;
       }
+      if (!isPanelTokenValid(req)) {
+        res.writeHead(403, { "content-type": "text/plain; charset=utf-8" });
+        res.end("forbidden token");
+        return;
+      }
       let body;
       try {
         body = await readJson(req);
@@ -920,12 +1505,21 @@ const server = http.createServer(async (req, res) => {
         res.end(error.message);
         return;
       }
-      const result = await setProfile(
+      const profileArgs = [
         String(body.agent || ""),
         String(body.mode || ""),
         String(body.model || ""),
         body.variant ? String(body.variant) : null,
-      );
+        body.fallback ? String(body.fallback) : null,
+        body.fallbackVariant ? String(body.fallbackVariant) : null,
+      ];
+      const result =
+        body.scope === "project" && body.project
+          ? await setProjectProfile(
+              String(body.project),
+              ...profileArgs,
+            )
+          : await setProfile(...profileArgs);
       res.writeHead(200, {
         "content-type": "application/json; charset=utf-8",
         "cache-control": "no-store",
@@ -946,6 +1540,197 @@ const server = http.createServer(async (req, res) => {
         "cache-control": "no-store",
       });
       res.end(JSON.stringify(detail));
+      return;
+    }
+    if (url.pathname === "/api/update") {
+      const update = await checkUpdate();
+      res.writeHead(200, {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+      });
+      res.end(JSON.stringify(update));
+      return;
+    }
+    if (url.pathname === "/api/guard-log") {
+      const data = readGuardLog(200);
+      res.writeHead(200, {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+      });
+      res.end(JSON.stringify(data));
+      return;
+    }
+    if (url.pathname === "/api/diagnostic") {
+      const data = await getDiagnostic();
+      res.writeHead(200, {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+        "content-disposition": 'attachment; filename="ajan-panosu-diagnostic.json"',
+      });
+      res.end(JSON.stringify(data, null, 2));
+      return;
+    }
+    if (url.pathname === "/api/preset") {
+      if (req.method !== "POST") {
+        res.writeHead(405, { "content-type": "text/plain; charset=utf-8" });
+        res.end("method not allowed");
+        return;
+      }
+      if (!isAllowedOrigin(req) || !isPanelTokenValid(req)) {
+        res.writeHead(403, { "content-type": "text/plain; charset=utf-8" });
+        res.end("forbidden");
+        return;
+      }
+      let body;
+      try {
+        body = await readJson(req);
+      } catch (error) {
+        res.writeHead(400, { "content-type": "text/plain; charset=utf-8" });
+        res.end(error.message);
+        return;
+      }
+      const result = setPreset(String(body.preset || ""));
+      res.writeHead(200, {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+      });
+      res.end(JSON.stringify(result));
+      return;
+    }
+    if (url.pathname === "/api/model-test") {
+      if (req.method !== "POST") {
+        res.writeHead(405, { "content-type": "text/plain; charset=utf-8" });
+        res.end("method not allowed");
+        return;
+      }
+      if (!isAllowedOrigin(req) || !isPanelTokenValid(req)) {
+        res.writeHead(403, { "content-type": "text/plain; charset=utf-8" });
+        res.end("forbidden");
+        return;
+      }
+      let body;
+      try {
+        body = await readJson(req);
+      } catch (error) {
+        res.writeHead(400, { "content-type": "text/plain; charset=utf-8" });
+        res.end(error.message);
+        return;
+      }
+      let result;
+      try {
+        result = await testModel(
+          String(body.model || ""),
+          body.variant ? String(body.variant) : null,
+          body.project ? String(body.project) : null,
+        );
+      } catch (error) {
+        result = {
+          ok: false,
+          model: String(body.model || ""),
+          error: String(error.message || error),
+        };
+      }
+      res.writeHead(200, {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+      });
+      res.end(JSON.stringify(result));
+      return;
+    }
+    if (url.pathname === "/api/archive-board") {
+      if (req.method !== "POST") {
+        res.writeHead(405, { "content-type": "text/plain; charset=utf-8" });
+        res.end("method not allowed");
+        return;
+      }
+      if (!isAllowedOrigin(req) || !isPanelTokenValid(req)) {
+        res.writeHead(403, { "content-type": "text/plain; charset=utf-8" });
+        res.end("forbidden");
+        return;
+      }
+      let body;
+      try {
+        body = await readJson(req);
+      } catch (error) {
+        res.writeHead(400, { "content-type": "text/plain; charset=utf-8" });
+        res.end(error.message);
+        return;
+      }
+      const result = archiveBoard(String(body.path || ""));
+      res.writeHead(200, {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+      });
+      res.end(JSON.stringify(result));
+      return;
+    }
+    if (url.pathname === "/api/project-profile/reset") {
+      if (req.method !== "POST") {
+        res.writeHead(405, { "content-type": "text/plain; charset=utf-8" });
+        res.end("method not allowed");
+        return;
+      }
+      if (!isAllowedOrigin(req) || !isPanelTokenValid(req)) {
+        res.writeHead(403, { "content-type": "text/plain; charset=utf-8" });
+        res.end("forbidden");
+        return;
+      }
+      let body;
+      try {
+        body = await readJson(req);
+      } catch (error) {
+        res.writeHead(400, { "content-type": "text/plain; charset=utf-8" });
+        res.end(error.message);
+        return;
+      }
+      const result = resetProjectProfile(String(body.project || ""));
+      res.writeHead(200, {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+      });
+      res.end(JSON.stringify(result));
+      return;
+    }
+    if (url.pathname === "/api/retry") {
+      if (req.method !== "POST") {
+        res.writeHead(405, { "content-type": "text/plain; charset=utf-8" });
+        res.end("method not allowed");
+        return;
+      }
+      if (!isAllowedOrigin(req) || !isPanelTokenValid(req)) {
+        res.writeHead(403, { "content-type": "text/plain; charset=utf-8" });
+        res.end("forbidden");
+        return;
+      }
+      let body;
+      try {
+        body = await readJson(req);
+      } catch (error) {
+        res.writeHead(400, { "content-type": "text/plain; charset=utf-8" });
+        res.end(error.message);
+        return;
+      }
+      const sessionID = String(body.sessionID || "");
+      if (!/^ses_[A-Za-z0-9]+$/.test(sessionID)) {
+        res.writeHead(400, { "content-type": "text/plain; charset=utf-8" });
+        res.end("invalid session id");
+        return;
+      }
+      const description = redact(String(body.description || ""), 200);
+      const text = description
+        ? `Önceki takılan alt görevi tekrar dene: ${description}. Önce git status kontrol et; yarım değişiklikleri koru.`
+        : "Önceki takılan alt görevi tekrar dene. Önce git status kontrol et; yarım değişiklikleri koru.";
+      const result = await upstreamJson(
+        "POST",
+        `/api/session/${encodeURIComponent(sessionID)}/prompt`,
+        { text, resume: true },
+        15000,
+      );
+      res.writeHead(200, {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+      });
+      res.end(JSON.stringify({ ok: true, result }));
       return;
     }
     if (url.pathname === "/api/state") {
@@ -974,9 +1759,10 @@ const server = http.createServer(async (req, res) => {
       const allBoards = readBoards(sessionList, activeMap);
       const projects = listProjects(sessionList, allBoards);
       const activeIds = new Set(Object.keys(activeMap));
+      const stuckMs = parseStuckMs(url);
       let allTasks = [];
       try {
-        allTasks = await collectTasks(sessionList, activeMap);
+        allTasks = await collectTasks(sessionList, activeMap, stuckMs);
       } catch {
         allTasks = [];
       }
@@ -1025,6 +1811,11 @@ const server = http.createServer(async (req, res) => {
       const selectedTasks = selectedProject
         ? allTasks.filter((task) => task.project === selectedProject)
         : [];
+      const analytics = buildAnalytics(
+        selectedSessions,
+        selectedTasks,
+        activeIds,
+      );
       res.writeHead(200, {
         "content-type": "application/json; charset=utf-8",
         "cache-control": "no-store",
@@ -1040,7 +1831,10 @@ const server = http.createServer(async (req, res) => {
           projects,
           tasks: selectedTasks,
           stuckCount: selectedTasks.filter((task) => task.stuck).length,
+          stuckMs,
+          analytics,
           setup,
+          version: PANEL_VERSION,
           generatedAt: Date.now(),
         }),
       );

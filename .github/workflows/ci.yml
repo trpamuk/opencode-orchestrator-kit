@@ -1,0 +1,111 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Node syntax checks
+        shell: pwsh
+        run: |
+          node --check agent-board/server.mjs
+          $html = Get-Content agent-board/index.html -Raw
+          $match = [regex]::Match($html, '(?s)<script>(.*?)</script>')
+          if (-not $match.Success) { throw "index.html script block not found" }
+          Set-Content -Path panel-script.js -Value $match.Groups[1].Value -Encoding utf8
+          node --check panel-script.js
+          node --check scripts/install-config.mjs
+
+      - name: PowerShell parse checks
+        shell: pwsh
+        run: |
+          $files = @(
+            "install.ps1",
+            "install-gui.ps1",
+            "doctor.ps1",
+            "scripts/release.ps1",
+            "agent-board/diagnostic.ps1"
+          )
+          foreach ($file in $files) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $file), [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Error "$file: $($_.Message)" }
+              throw "PowerShell parse failed: $file"
+            }
+          }
+
+      - name: Shell syntax check
+        shell: bash
+        run: bash -n install.sh
+
+      - name: Installer smoke test
+        shell: pwsh
+        run: |
+          $temp = Join-Path $env:TEMP "kit-ci-install"
+          if (Test-Path $temp) { Remove-Item $temp -Recurse -Force }
+          powershell -NoProfile -ExecutionPolicy Bypass -File install.ps1 -ConfigDir $temp -NoShortcuts -NoStart -NoModelPrompt
+          if (-not (Test-Path (Join-Path $temp "opencode.json"))) { throw "opencode.json missing" }
+          if (-not (Test-Path (Join-Path $temp "oh-my-opencode-slim.json"))) { throw "oh-my-opencode-slim.json missing" }
+          if (-not (Test-Path (Join-Path $temp "agent-board\server.mjs"))) { throw "agent-board/server.mjs missing" }
+          $opencode = Get-Content (Join-Path $temp "opencode.json") -Raw | ConvertFrom-Json
+          if (@($opencode.plugins) -notcontains "oh-my-opencode-slim@3.0.7") { throw "plugin missing" }
+          if ($opencode.default_agent -ne "orchestrator") { throw "default_agent missing" }
+          $omo = Get-Content (Join-Path $temp "oh-my-opencode-slim.json") -Raw | ConvertFrom-Json
+          if ($omo.preset -ne "session") { throw "expected session preset" }
+          if ($omo.stripOrchestratorModel -ne $true) { throw "stripOrchestratorModel missing" }
+
+      - name: Config merge tests
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:TEMP "kit-ci-merge"
+          if (Test-Path $root) { Remove-Item $root -Recurse -Force }
+          New-Item -ItemType Directory -Force -Path $root | Out-Null
+          $existing = Join-Path $root "opencode.json"
+          '{"model":"my-provider/my-model","theme":"dark"}' | Set-Content $existing -Encoding utf8
+          node scripts/install-config.mjs opencode $existing config/opencode.json
+          $merged = Get-Content $existing -Raw | ConvertFrom-Json
+          if ($merged.model -ne "my-provider/my-model") { throw "model was not preserved" }
+          if (@($merged.plugins) -notcontains "oh-my-opencode-slim@3.0.7") { throw "plugin was not merged" }
+
+          $omoTarget = Join-Path $root "oh-my-opencode-slim.json"
+          '{"preset":"opencode-go"}' | Set-Content $omoTarget -Encoding utf8
+          node scripts/install-config.mjs omo $omoTarget config/oh-my-opencode-slim.json
+          $omo = Get-Content $omoTarget -Raw | ConvertFrom-Json
+          if ($omo.preset -ne "opencode-go") { throw "preset was not preserved" }
+          if ($omo.presets.session -eq $null) { throw "session preset missing" }
+
+          node scripts/install-config.mjs model $existing "opencode-go/deepseek-v4.1-flash"
+          $withModel = Get-Content $existing -Raw | ConvertFrom-Json
+          if ($withModel.model -ne "opencode-go/deepseek-v4.1-flash") { throw "model write failed" }
+
+      - name: Server smoke test
+        shell: pwsh
+        run: |
+          $env:AGENT_BOARD_PORT = "43125"
+          $env:AGENT_BOARD_OMO_CONFIG = Join-Path $env:TEMP "kit-ci-missing-omo.json"
+          $process = Start-Process -FilePath "node" -ArgumentList "agent-board/server.mjs" -PassThru -WindowStyle Hidden
+          try {
+            Start-Sleep -Seconds 2
+            $health = Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:43125/health" -TimeoutSec 10
+            if ($health.Content -ne "ok") { throw "health failed" }
+            $page = Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:43125/" -TimeoutSec 10
+            if ($page.Content -notmatch 'name="panel-token" content="[a-f0-9]{48}"') { throw "panel token missing" }
+            $server = Get-Content agent-board/server.mjs -Raw
+            foreach ($endpoint in @("/api/models", "/api/profile", "/api/session-detail", "/api/update", "/api/diagnostic", "/api/guard-log", "/api/archive-board", "/api/retry", "/api/model-test")) {
+              if ($server -notmatch [regex]::Escape($endpoint)) { throw "endpoint missing: $endpoint" }
+            }
+          } finally {
+            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+          }

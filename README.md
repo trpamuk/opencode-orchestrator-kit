@@ -1,7 +1,7 @@
 # OpenCode Orchestrator Kit
 
-**Version:** 0.3.0  
-**Platform:** Windows 10/11  
+**Version:** 0.4.0  
+**Platform:** Windows 10/11, macOS/Linux (experimental)  
 **Status:** early public preview
 
 A one-click Windows bootstrap for a practical multi-agent OpenCode setup:
@@ -12,6 +12,22 @@ A one-click Windows bootstrap for a practical multi-agent OpenCode setup:
 - **Board Guard** as a write-isolation plugin for task boards
 
 > This is an independent community project. It is not affiliated with or endorsed by OpenCode or OMO-slim.
+
+---
+
+## v0.4.0 highlights
+
+- **Update awareness:** the dashboard shows its version and checks the latest GitHub release.
+- **Safer writes:** every panel write endpoint requires a per-process token, not just a same-origin request.
+- **Model health test:** test a model with a tiny temporary session before assigning it to an agent.
+- **Primary + fallback models:** each agent can have a fallback chain.
+- **Preset switching:** switch between `session` and `opencode-go` from the dashboard.
+- **Per-project profiles:** a project can override agent models without changing the global setup.
+- **Automation controls:** configurable stuck threshold, opt-in auto-stop and Web Notifications.
+- **Deeper session detail:** live refresh, tool filter, copy error, lineage tree and retry.
+- **Operations:** agent analytics, Board Guard log viewer, board archive button and diagnostic bundle.
+- **Installers:** WinForms GUI on Windows and an experimental `install.sh` for macOS/Linux.
+- **Release tooling:** SHA256 checksums, Scoop manifest, Winget template and GitHub Actions CI.
 
 ---
 
@@ -43,6 +59,11 @@ It does **not** replace OpenCode or OMO-slim. It configures them and adds the mi
 | `agent-board/` | Ajan Panosu local dashboard and avatars |
 | Startup shortcut | Starts the dashboard server automatically |
 | Desktop shortcut | Opens the dashboard in a browser |
+| `install-gui.cmd` | Optional WinForms installer with model selection |
+| `install.sh` | Experimental macOS/Linux installer |
+| `diagnostic.cmd` | Creates a redacted diagnostic ZIP |
+| `scripts/release.ps1` | Maintainer release, SHA256 and packaging helper |
+| `.github/workflows/ci.yml` | Windows CI for syntax, installer and config tests |
 | `doctor.cmd` | Checks the installed setup |
 | `uninstall.cmd` | Removes shortcuts and stops the dashboard server |
 
@@ -69,10 +90,12 @@ This is the important part:
 1. Install OpenCode Desktop 2.x
 2. Configure a provider and select a model in OpenCode (any provider; OpenCode Go is optional)
 3. Install Node.js 22+
-4. Extract this kit and run install.cmd
+4. Extract this kit and run install.cmd (or install-gui.cmd for the GUI)
 5. Fully quit and reopen OpenCode Desktop
 6. Open the dashboard
 ```
+
+On Windows, `install-gui.cmd` offers a WinForms wizard with a searchable model list. On macOS/Linux, use `./install.sh` (experimental) and select the model inside OpenCode.
 
 You do **not** need to install OMO-slim manually. The kit writes the OMO-slim plugin configuration and lets OpenCode install the pinned `oh-my-opencode-slim@3.0.7` package on startup.
 
@@ -196,8 +219,13 @@ It shows:
 - **Alt Görevler**: running `subagent`/`task` tool calls inside a session, even when they never create a separate child session;
 - a red **takıldı?** state when a session or subagent task has not updated for 15 minutes;
 - a **Durdur** button on stuck cards; it asks for confirmation and interrupts only that session's current run;
-- a **Detay** button on session and task cards; it shows recent tool calls, errors, model, tokens and cost;
-- a **Modeller** button for per-agent model profiles (session model or a specific model);
+- a **Modeller** button for per-agent model profiles, fallback chains, preset switching, model testing and per-project profiles;
+- a **Detay** button with live refresh, tool filter, copy error, lineage tree and retry;
+- a **Ayarlar** dialog for stuck threshold, opt-in auto-stop, Web Notifications and diagnostic download;
+- an **Analitik** view with sessions, success/fail counts, average duration, tokens, cost and stuck tasks per agent;
+- a **Guard** view for the Board Guard log;
+- an **Arşivle** button on active boards;
+- a version badge and GitHub update check;
 - a first-run banner when OpenCode has no default model selected;
 - active task boards, parsed from the project's `.opencode/plans/` area;
 - a project selector so two projects never share one board view.
@@ -212,9 +240,13 @@ Click **Modeller** in the header to edit the active OMO preset per agent:
 
 - choose **Oturum modeli** to inherit the model selected in OpenCode;
 - choose a specific model for orchestrator, oracle, explorer, designer, fixer or observer;
-- optionally choose a reasoning variant when the model exposes variants.
+- choose an optional **fallback** model for each agent;
+- choose a reasoning variant when the model exposes variants;
+- click **Test** to run a tiny temporary session and verify the model actually responds;
+- switch the active preset between `session` and `opencode-go`;
+- enable **Bu proje için** to write a project-level profile to `<project>\.opencode\oh-my-opencode-slim.json` instead of the global config.
 
-Changes are written to `%USERPROFILE%\.config\opencode\oh-my-opencode-slim.json`, with a timestamped backup under the same folder. The model list comes from OpenCode and is sanitized: provider API keys and settings are never sent to the browser.
+Global changes are written to `%USERPROFILE%\.config\opencode\oh-my-opencode-slim.json`, with a timestamped backup under the same folder. Project profiles are backed up under `<project>\.opencode\backups\`. The model list comes from OpenCode and is sanitized: provider API keys and settings are never sent to the browser.
 
 ### Session detail
 
@@ -222,9 +254,12 @@ Click **Detay** on any session or subagent card to see:
 
 - agent, model, outcome, tokens, cost and last activity;
 - the most recent tool calls with status, duration and a short description;
-- tool errors and the session error, with common secret patterns redacted.
+- tool errors and the session error, with common secret patterns redacted;
+- a tool filter, live refresh, copy-error and session-ID buttons;
+- a lineage tree of parent/child sessions;
+- a **Yeniden dene** button for a stuck subagent, which sends a retry prompt to the parent session.
 
-The detail view is read-only; the **Durdur** button is available there when the session is stuck.
+The detail view is read-only apart from **Durdur** and **Yeniden dene**.
 
 ---
 
@@ -322,6 +357,30 @@ If the problem repeats and you prefer reliability over parallel background work,
 
 This avoids the native background path entirely, at the cost of serializing those subagents.
 
+### Update badge
+
+The dashboard checks the latest GitHub release once an hour. If a newer release exists, click the green badge to open the release page. Re-running `install.cmd` is safe and preserves your model, preset choice and `guard.log`.
+
+### Notifications and auto-stop
+
+Open **Ayarlar** and click **Bildirim izni**. Web Notifications are used for stuck tasks and failed/interrupted sessions. **Otomatik durdur** is opt-in and only triggers after the stuck threshold plus five minutes. It calls the same guarded interrupt endpoint as the **Durdur** button.
+
+### Per-project profile
+
+Enable **Bu proje için** in the **Modeller** dialog to write `<project>\.opencode\oh-my-opencode-slim.json`. Use **Proje profilini sıfırla** to return to the global profile. Project profiles are cloned from the currently active global preset; re-save after changing the global preset.
+
+### Model test fails
+
+The **Test** button creates a temporary session, sends a tiny prompt, waits for a reply and deletes the session. A failure usually means the provider is offline, the model does not support chat/tools, or the selected variant is invalid. Check the model in OpenCode first.
+
+### Diagnostic bundle
+
+```text
+%USERPROFILE%\.config\opencode\agent-board\diagnostic.cmd
+```
+
+This creates a ZIP on the Desktop containing a redacted `diagnostic.json`, the kit version and a README. The dashboard's **Ayarlar → JSON indir** button downloads the same redacted JSON directly.
+
 ### Full diagnostic
 
 ```text
@@ -336,6 +395,10 @@ doctor.cmd
 - `service.json`, `.env`, backups, logs and local ZIPs are excluded by `.gitignore`.
 - The dashboard listens on loopback only.
 - The **Durdur** button uses a local `POST /api/interrupt` endpoint. It accepts only same-origin requests and only active sessions that have a running subagent task. It interrupts execution; it never deletes files or boards.
+- Every panel write endpoint (`/api/interrupt`, `/api/profile`, `/api/preset`, `/api/project-profile/reset`, `/api/archive-board`, `/api/model-test`, `/api/retry`) requires a per-process `X-Panel-Token` injected into the panel HTML.
+- The model list is sanitized before it reaches the browser; provider API keys and settings are never sent.
+- The diagnostic endpoint redacts common secret patterns from config summaries and log tails.
+- Project profiles are written only to `<project>\.opencode\oh-my-opencode-slim.json` after validating that the project directory exists.
 - Do not expose port `43124` to a LAN or the internet without an authenticated reverse proxy.
 - Review third-party OpenCode plugins before installing them.
 
@@ -361,8 +424,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Türkçe
 
-**Sürüm:** 0.3.0  
-**Platform:** Windows 10/11
+**Sürüm:** 0.4.0  
+**Platform:** Windows 10/11, macOS/Linux (deneysel)
 
 Bu kit, OpenCode Desktop + OMO-slim + Ajan Panosu + Board Guard kurulumunu tek tıkla yapar.
 
@@ -375,11 +438,11 @@ OMO-slim güçlü bir orkestrasyon katmanıdır; ancak OpenCode Desktop içinde 
 1. OpenCode Desktop 2.x kur.
 2. OpenCode'da istediğin provider/model'i seç. **OpenCode Go şart değil.**
 3. Node.js 22+ kur.
-4. ZIP'i çıkar ve `install.cmd` çalıştır.
+4. ZIP'i çıkar ve `install.cmd` (veya GUI için `install-gui.cmd`) çalıştır.
 5. OpenCode Desktop'ı tamamen kapatıp yeniden aç.
 6. Paneli aç: `http://127.0.0.1:43124/`
 
-OMO-slim'i ayrıca kurmana gerek yok; kit gerekli config'i yazar ve OpenCode `oh-my-opencode-slim@3.0.7` paketini kendisi yükler.
+macOS/Linux'ta `./install.sh` kullanılabilir (deneysel). OMO-slim'i ayrıca kurmana gerek yok; kit gerekli config'i yazar ve OpenCode `oh-my-opencode-slim@3.0.7` paketini kendisi yükler.
 
 ### Model özgürlüğü
 
@@ -395,7 +458,7 @@ Ayar dosyası: `%USERPROFILE%\.config\opencode\oh-my-opencode-slim.json`
 
 Installer çalışırken OpenCode servisindeki modelleri listeler; mevcut modeli koru, listeden seç veya model alanını boş bırak seçeneklerini sunar. `-NoModelPrompt` ile soru atlanır, `-Model "provider/model"` ile model önceden seçilir.
 
-Panelde **Modeller** butonu agent bazlı override yazar; değişiklikten önce yedek alınır ve provider API key'leri tarayıcıya gönderilmez.
+Panelde **Modeller** butonu agent bazlı override yazar; birincil + yedek model, model testi ve `session`/`opencode-go` preset geçişi sunar. **Bu proje için** seçilirse ayar `<proje>\.opencode\oh-my-opencode-slim.json` dosyasına yazılır. Değişiklikten önce yedek alınır ve provider API key'leri tarayıcıya gönderilmez.
 
 Tek bir ajana özel model vermek için `model`, oturum modelini takip etmesi için `inheritModelFrom: "session"` kullanılabilir. Observer görsel model gerektirir; oturum modelin multimodal değilse observer'a ayrı model ver veya `"disabled_agents": ["observer"]` ile kapat.
 
@@ -405,10 +468,14 @@ Tek bir ajana özel model vermek için `model`, oturum modelini takip etmesi iç
 - Masaüstü kısayolu: `Ajan Panosu`
 - OpenCode içinde: Review pane → yeni browser sekmesi → aynı URL
 - Sunucu Startup'ta otomatik başlar.
-- **Alt Görevler** bölümü, oturum içinde çalışan `subagent`/`task` çağrılarını gösterir; 15 dakikadır güncellenmeyenler `takıldı?` olur.
+- **Alt Görevler** bölümü, oturum içinde çalışan `subagent`/`task` çağrılarını gösterir; ayarlanabilir eşikten (varsayılan 15 dk) sonra `takıldı?` olur.
 - Takılı kartlarda **Durdur** butonu vardır; onay ister ve sadece o oturumun mevcut çalışmasını keser. Dosya/board değiştirmez; tekrar çalıştırmadan önce `git status` kontrol edilmeli.
-- **Modeller** butonu ile orchestrator, oracle, explorer, designer, fixer ve observer için oturum modeli veya belirli bir model seçilebilir.
-- **Detay** butonu son tool çağrılarını, hataları, modeli, token ve maliyeti gösterir.
+- **Modeller** butonu ile orchestrator, oracle, explorer, designer, fixer ve observer için oturum modeli, belirli model, yedek model, variant ve model testi kullanılabilir.
+- **Detay** butonu son tool çağrılarını, hataları, modeli, token/maliyeti, oturum ağacını gösterir; canlı yenileme, tool filtresi, hata kopyalama ve **Yeniden dene** vardır.
+- **Ayarlar** ile takılma eşiği, opt-in otomatik durdurma, Web Bildirimleri ve diagnostic indirme ayarlanır.
+- **Analitik** agent bazlı başarı/hata/süre/maliyet/stuck tablosu gösterir.
+- **Guard** Board Guard log'unu, **Arşivle** aktif board'u arşive taşımayı sağlar.
+- Sürüm rozeti ve GitHub güncelleme kontrolü vardır.
 - OpenCode'da varsayılan model yoksa panelde uyarı bandı çıkar.
 
 ### Board Guard
@@ -422,11 +489,16 @@ Sadece projenin `.opencode/plans/current.md` ve `.opencode/plans/boards/*.md` al
 - Model bulunamıyorsa: OpenCode'da önce bir provider/model seç; kit varsayılan olarak model pinlemez. Panelde **Modeller** butonunu kullan veya `doctor.cmd` çıktısındaki `Varsayilan model` satırına bak. Test edilmiş OpenCode Go setup'ı için `preset` değerini `opencode-go` yap.
 - Alt görev 15 dk+ güncellenmezse panelde `takıldı?` görünür; üst oturumu durdurup OpenCode'u yeniden başlat.
 - Kalıcı sorunda `backgroundJobs.sameProviderPolicy` ile aynı sağlayıcıdaki alt görevler foreground çalıştırılabilir; bu paralelliği azaltır.
+- Güncelleme rozeti çıkarsa release sayfasını aç; `install.cmd` güvenle tekrar çalıştırılabilir.
+- Bildirimler için **Ayarlar → Bildirim izni**; otomatik durdurma opt-in'dir ve eşik + 5 dk sonra çalışır.
+- Proje bazlı profil sorunluysa **Modeller → Bu proje için → Proje profilini sıfırla**.
+- Diagnostic ZIP: `%USERPROFILE%\.config\opencode\agent-board\diagnostic.cmd`
+- Panel write endpoint'leri `X-Panel-Token` ister; panel sayfasını yenilemediysen işlem 403 dönebilir.
 - Log: `%USERPROFILE%\.config\opencode\agent-board\guard.log`
 
 ### Güvenlik
 
-Kit içinde API key yoktur. `service.json`, `.env`, yedekler ve loglar repoya dahil edilmez. Panel yalnızca `127.0.0.1` üzerinde dinler.
+Kit içinde API key yoktur. `service.json`, `.env`, yedekler ve loglar repoya dahil edilmez. Panel yalnızca `127.0.0.1` üzerinde dinler. Panel write endpoint'leri süreç başına `X-Panel-Token` ister; model listesi sanitize edilir, diagnostic çıktısındaki hassas desenler redakte edilir.
 
 ---
 

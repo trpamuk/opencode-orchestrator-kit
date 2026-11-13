@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.4.0 - 2026-11-13
+
+- Added panel version display and GitHub release update check
+- Added a per-process panel token for all write endpoints
+- Added a live model health test (temporary session, tiny prompt, automatic cleanup)
+- Added primary + fallback model chains per agent
+- Added `session` / `opencode-go` preset switching from the dashboard
+- Added per-project OMO profiles written to `<project>/.opencode/oh-my-opencode-slim.json`
+- Added configurable stuck threshold, opt-in auto-stop and Web Notifications
+- Added session detail live refresh, tool filter, copy error, lineage tree and retry
+- Added agent analytics, Board Guard log viewer and board archive button
+- Added a redacted diagnostic JSON endpoint and ZIP script
+- Added a WinForms installer GUI with searchable model selection
+- Added a macOS/Linux `install.sh` installer and config merge helper
+- Added `scripts/release.ps1`, SHA256 checksums, Scoop manifest and Winget template
+- Added GitHub Actions CI for syntax, installer, config merge and server smoke tests
+- Documented the Winget signing limitation and the macOS/Linux experimental status
+
 ## 0.3.0 - 2026-11-12
 
 - Added model selection to the installer: lists models from the running OpenCode service, preserves the current model, supports `-NoModelPrompt` and `-Model "provider/model"`

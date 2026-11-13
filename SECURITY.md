@@ -24,6 +24,10 @@ Include:
 ## Hardening notes
 
 - Keep the dashboard on loopback.
+- Panel write endpoints require a per-process `X-Panel-Token` injected into the panel HTML.
+- The model list is sanitized; provider API keys and settings are never sent to the browser.
+- The diagnostic endpoint redacts common secret patterns from config summaries and log tails.
+- Project profiles are written only to `<project>\.opencode\oh-my-opencode-slim.json` after validating the project directory.
 - Do not expose port `43124` to a LAN or the internet without an authenticated reverse proxy.
 - Review third-party OpenCode plugins before installing them.
 - Rotate provider credentials if you suspect exposure.

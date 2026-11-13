@@ -12,10 +12,14 @@ OpenCode 2.x için canlı, yerel ajan ve görev panosu.
 
 - Seçili projedeki tüm oturumlar: resmi ajan adı, `#ajan-id`, model, ana/alt oturum, oturum kimliği, proje, süre, son işlem, token ve maliyet.
 - **Alt Görevler**: oturum içinde çalışan `subagent`/`task` tool çağrıları; alt oturum oluşmasa bile görünür.
-- **takıldı?** durumu: 15 dakikadır güncellenmeyen oturum veya alt görev kırmızı işaretlenir.
+- **takıldı?** durumu: ayarlanabilir eşikten (varsayılan 15 dk) sonra oturum veya alt görev kırmızı işaretlenir.
 - **Durdur** butonu: takılı kartlarda görünür; onay ister ve sadece ilgili oturumun mevcut çalışmasını keser. Dosya/board değiştirmez.
-- **Modeller** butonu: orchestrator, oracle, explorer, designer, fixer ve observer için oturum modeli veya belirli model seçimi. Değişiklik öncesi OMO config yedeği alınır; provider API key'leri tarayıcıya gönderilmez.
-- **Detay** butonu: son tool çağrıları, hata, model, token ve maliyet. Hassas anahtarlar redakte edilir.
+- **Modeller** butonu: oturum modeli, belirli model, birincil + yedek model, variant, model testi, `session`/`opencode-go` preset geçişi ve **Bu proje için** proje profili. Değişiklik öncesi yedek alınır; provider API key'leri tarayıcıya gönderilmez.
+- **Detay** butonu: son tool çağrıları, hata, model, token/maliyet, canlı yenileme, tool filtresi, hata kopyalama, oturum ağacı ve **Yeniden dene**. Hassas anahtarlar redakte edilir.
+- **Ayarlar**: takılma eşiği, opt-in otomatik durdurma, Web Bildirimleri ve diagnostic indirme.
+- **Analitik**: agent bazlı oturum/başarı/hata/süre/token/maliyet/stuck tablosu.
+- **Guard**: Board Guard log görüntüleyici. **Arşivle**: aktif board'u arşive taşır.
+- Sürüm rozeti ve GitHub güncelleme kontrolü.
 - OpenCode'da varsayılan model yoksa üstte uyarı bandı çıkar.
 - Ajan görselleri: OMO-slim'in resmi ajan görsellerinden üretilmiş 128 px avatarlar.
 - Ajan rehberi: orchestrator, explorer, fixer, designer, oracle, observer, arbiter, paladin, proctor, hunter, build, plan.
