@@ -5,16 +5,28 @@ param(
   [switch]$NoModelPrompt,
   [switch]$Yes,
   [switch]$Force,
+  [Alias("Version")][string]$RequestedVersion = "",
   [string]$Repo = "trpamuk/opencode-orchestrator-kit"
 )
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $localVersion = (Get-Content (Join-Path $root "VERSION") -Raw).Trim()
-$api = "https://api.github.com/repos/$Repo/releases/latest"
+$requested = $RequestedVersion.Trim()
+if ($requested.StartsWith("v")) {
+  $requested = $requested.Substring(1)
+}
+$api = if ($requested) {
+  "https://api.github.com/repos/$Repo/releases/tags/v$requested"
+} else {
+  "https://api.github.com/repos/$Repo/releases/latest"
+}
 $release = Invoke-RestMethod -Uri $api -Headers @{ "User-Agent" = "opencode-orchestrator-kit-updater" } -TimeoutSec 30
 $tag = [string]$release.tag_name
 $version = $tag.TrimStart("v")
+if ($requested -and $version -ne $requested) {
+  throw "Requested v$requested but GitHub returned v$version."
+}
 if ($localVersion -eq $version -and -not $Force) {
   Write-Host "Zaten guncel: v$version" -ForegroundColor Green
   exit 0
@@ -23,7 +35,11 @@ if ($localVersion -eq $version -and -not $Force) {
 $zipAsset = $release.assets | Where-Object { $_.name -like "opencode-orchestrator-kit-v*.zip" } | Select-Object -First 1
 $shaAsset = $release.assets | Where-Object { $_.name -like "*.zip.sha256" } | Select-Object -First 1
 if (-not $zipAsset) {
-  throw "Latest release does not contain a kit ZIP."
+  throw "Release v$version does not contain a kit ZIP."
+}
+$expectedZipName = "opencode-orchestrator-kit-v$version.zip"
+if ($zipAsset.name -ne $expectedZipName) {
+  throw "Release asset mismatch. Expected $expectedZipName, got $($zipAsset.name)."
 }
 
 $temp = Join-Path $env:TEMP ("opencode-orchestrator-kit-update-" + [guid]::NewGuid().ToString("N"))
@@ -63,6 +79,21 @@ Expand-Archive -Path $zip -DestinationPath $extract -Force
 $installer = Join-Path $extract "install.ps1"
 if (-not (Test-Path $installer)) {
   throw "install.ps1 not found in the downloaded ZIP."
+}
+$kitVersionFile = Join-Path $extract "VERSION"
+if (-not (Test-Path $kitVersionFile)) {
+  throw "VERSION not found in the downloaded ZIP."
+}
+$kitVersion = (Get-Content $kitVersionFile -Raw).Trim()
+if ($kitVersion -ne $version) {
+  throw "Downloaded ZIP VERSION is $kitVersion but the release is v$version."
+}
+$panelVersionFile = Join-Path $extract "agent-board\VERSION"
+if (Test-Path $panelVersionFile) {
+  $panelVersion = (Get-Content $panelVersionFile -Raw).Trim()
+  if ($panelVersion -ne $version) {
+    throw "Downloaded panel VERSION is $panelVersion but the release is v$version."
+  }
 }
 
 $installArgs = @(

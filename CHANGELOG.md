@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.6 - 2026-11-13
+
+- `update.ps1` now accepts `-Version` for installing or rolling back to a specific release
+- The updater verifies that the release tag, asset name, ZIP `VERSION` and panel `VERSION` all match before installing
+- Added `scripts/verify-release.ps1` to verify local or online release assets, SHA256, versions, required files, launcher signature and manifests
+- CI now runs the release verifier after building the package
+- Documented release verification in `README.md` and `docs/signing.md`
+
 ## 0.4.5 - 2026-11-13
 
 - `scripts/sign.ps1` now supports certificate thumbprints and PFX files, verifies the signer, and can accept self-signed test signatures with `-AllowUntrusted`

@@ -26,7 +26,7 @@ Build and sign a release:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\release.ps1 `
-  -Version 0.4.5 `
+  -Version 0.4.6 `
   -CertificateThumbprint <thumbprint> `
   -Publish
 ```
@@ -39,7 +39,7 @@ You can skip the certificate store:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\release.ps1 `
-  -Version 0.4.5 `
+  -Version 0.4.6 `
   -PfxPath .\codesign.pfx `
   -PfxPassword "<password>" `
   -Publish
@@ -107,6 +107,20 @@ The `Release` workflow (`.github/workflows/release.yml`) can build and optionall
    - `publish`: enable to create the GitHub release and upload assets.
 
 If the secrets are missing, the workflow builds an unsigned release and prints a warning.
+
+## Verify a published release
+
+`scripts/verify-release.ps1` checks a local or downloaded release:
+
+```powershell
+# Local dist folder
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.6
+
+# Download the GitHub release assets and require a trusted signature
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.6 -Online -RequireSignature
+```
+
+It verifies the SHA256, embedded `VERSION` and `agent-board/VERSION`, required ZIP entries, launcher file version, launcher signature, and the Scoop/Winget manifest version, URL and hash.
 
 ## Winget submission
 

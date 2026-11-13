@@ -37,6 +37,7 @@ jobs:
             "scripts/release.ps1",
             "scripts/build-launcher.ps1",
             "scripts/sign.ps1",
+            "scripts/verify-release.ps1",
             "agent-board/diagnostic.ps1"
           )
           foreach ($file in $files) {
@@ -102,6 +103,7 @@ jobs:
           if (-not (Test-Path "dist\opencode-orchestrator-kit-v$version.zip")) { throw "release zip missing" }
           $zipVersion = tar -xOf "dist\opencode-orchestrator-kit-v$version.zip" VERSION
           if ($zipVersion.Trim() -ne $version) { throw "zip VERSION mismatch" }
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-release.ps1 -Version $version
           if (Get-Command winget -ErrorAction SilentlyContinue) {
             winget validate --manifest "dist\packaging\trpamuk.OpenCodeOrchestratorKit.yaml"
             if ($LASTEXITCODE -ne 0) { throw "winget validation failed" }

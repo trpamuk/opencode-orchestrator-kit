@@ -1,6 +1,6 @@
 # OpenCode Orchestrator Kit
 
-**Version:** 0.4.5  
+**Version:** 0.4.6  
 **Platform:** Windows 10/11, macOS/Linux (experimental)  
 **Status:** early public preview
 
@@ -67,6 +67,7 @@ It does **not** replace OpenCode or OMO-slim. It configures them and adds the mi
 | `diagnostic.cmd` | Creates a redacted diagnostic ZIP |
 | `scripts/release.ps1` | Maintainer release, SHA256 and packaging helper |
 | `scripts/sign.ps1` | Code-signing helper for a user-provided certificate |
+| `scripts/verify-release.ps1` | Verifies local or online release assets, SHA256, versions and signature |
 | `.github/workflows/ci.yml` | Windows CI for syntax, installer, config and signing tests |
 | `.github/workflows/release.yml` | Optional signed release workflow |
 | `docs/signing.md` | Code-signing and Winget submission guide |
@@ -219,7 +220,7 @@ Run **`update.cmd`** (or `update.ps1`). It:
 - verifies the SHA256 before extracting,
 - runs the same safe installer with your existing config.
 
-Use `-Yes` for unattended mode and `-Force` to reinstall the same version. The updater preserves your model, preset choice and `guard.log`.
+Use `-Yes` for unattended mode and `-Force` to reinstall the same version. Use `-Version 0.4.5` to install or roll back to a specific release. The updater preserves your model, preset choice and `guard.log`, and verifies that the release tag, asset name and embedded `VERSION` files match before installing.
 
 ### Maintainer release and signing
 
@@ -229,12 +230,21 @@ To sign the launcher, pass a certificate thumbprint (or `-PfxPath` / `-PfxPasswo
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\release.ps1 `
-  -Version 0.4.5 `
+  -Version 0.4.6 `
   -CertificateThumbprint <thumbprint> `
   -Publish
 ```
 
 The `Release` GitHub Actions workflow can build and publish with the `WINDOWS_CERT_PFX_BASE64` and `WINDOWS_CERT_PASSWORD` repository secrets. See [docs/signing.md](docs/signing.md) for certificate setup, verification, self-signed testing and Winget submission.
+
+Verify a local or published release:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.6
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.6 -Online -RequireSignature
+```
+
+The verifier checks the SHA256, embedded `VERSION` files, required ZIP entries, launcher version and signature, and the Scoop/Winget manifest URLs and hashes.
 
 ---
 
@@ -460,7 +470,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Türkçe
 
-**Sürüm:** 0.4.5  
+**Sürüm:** 0.4.6  
 **Platform:** Windows 10/11, macOS/Linux (deneysel)
 
 Bu kit, OpenCode Desktop + OMO-slim + Ajan Panosu + Board Guard kurulumunu tek tıkla yapar.
