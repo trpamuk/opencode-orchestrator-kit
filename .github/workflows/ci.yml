@@ -32,8 +32,11 @@ jobs:
           $files = @(
             "install.ps1",
             "install-gui.ps1",
+            "update.ps1",
             "doctor.ps1",
             "scripts/release.ps1",
+            "scripts/build-launcher.ps1",
+            "scripts/sign.ps1",
             "agent-board/diagnostic.ps1"
           )
           foreach ($file in $files) {
@@ -89,6 +92,19 @@ jobs:
           node scripts/install-config.mjs model $existing "opencode-go/deepseek-v4.1-flash"
           $withModel = Get-Content $existing -Raw | ConvertFrom-Json
           if ($withModel.model -ne "opencode-go/deepseek-v4.1-flash") { throw "model write failed" }
+
+      - name: Launcher and packaging validation
+        shell: pwsh
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts/release.ps1 -Version 0.0.1
+          if (-not (Test-Path "dist\launcher\OpenCodeOrchestratorKit.exe")) { throw "launcher missing" }
+          if (-not (Test-Path "dist\opencode-orchestrator-kit-v0.0.1.zip")) { throw "release zip missing" }
+          if (Get-Command winget -ErrorAction SilentlyContinue) {
+            winget validate --manifest "dist\packaging\trpamuk.OpenCodeOrchestratorKit.yaml"
+            if ($LASTEXITCODE -ne 0) { throw "winget validation failed" }
+          } else {
+            Write-Host "winget not available; skipping manifest validation"
+          }
 
       - name: Server smoke test
         shell: pwsh

@@ -1,6 +1,6 @@
 # OpenCode Orchestrator Kit
 
-**Version:** 0.4.2  
+**Version:** 0.4.3  
 **Platform:** Windows 10/11, macOS/Linux (experimental)  
 **Status:** early public preview
 
@@ -59,10 +59,13 @@ It does **not** replace OpenCode or OMO-slim. It configures them and adds the mi
 | `agent-board/` | Ajan Panosu local dashboard and avatars |
 | Startup shortcut | Starts the dashboard server automatically |
 | Desktop shortcut | Opens the dashboard in a browser |
+| `OpenCodeOrchestratorKit.exe` | .NET Framework WinExe launcher for the GUI installer |
 | `install-gui.cmd` | Optional WinForms installer with model selection |
+| `update.cmd` | SHA256-verified one-click update |
 | `install.sh` | Experimental macOS/Linux installer |
 | `diagnostic.cmd` | Creates a redacted diagnostic ZIP |
 | `scripts/release.ps1` | Maintainer release, SHA256 and packaging helper |
+| `scripts/sign.ps1` | Code-signing helper for a user-provided certificate |
 | `.github/workflows/ci.yml` | Windows CI for syntax, installer and config tests |
 | `doctor.cmd` | Checks the installed setup |
 | `uninstall.cmd` | Removes shortcuts and stops the dashboard server |
@@ -73,7 +76,7 @@ It does **not** replace OpenCode or OMO-slim. It configures them and adds the mi
 
 Before running the kit, install:
 
-1. **OpenCode Desktop 2.x**
+1. **OpenCode Desktop 2.3.x** (2.x supported; 2.3.0 is the tested version)
 2. **Node.js 22+**
 3. **Any working provider/model configured in OpenCode** (OpenCode Go is optional)
 4. **Git** (recommended; Board Guard uses it to resolve the repository root)
@@ -90,7 +93,7 @@ This is the important part:
 1. Install OpenCode Desktop 2.x
 2. Configure a provider and select a model in OpenCode (any provider; OpenCode Go is optional)
 3. Install Node.js 22+
-4. Extract this kit and run install.cmd (or install-gui.cmd for the GUI)
+4. Extract this kit and run install.cmd, install-gui.cmd, or double-click OpenCodeOrchestratorKit.exe
 5. Fully quit and reopen OpenCode Desktop
 6. Open the dashboard
 ```
@@ -204,6 +207,17 @@ The installer is safe to re-run. It:
 
 If the staging copy is incomplete, the installer stops before touching the current dashboard.
 
+### One-click update
+
+Run **`update.cmd`** (or `update.ps1`). It:
+
+- reads the latest GitHub release,
+- downloads the kit ZIP and its `.sha256`,
+- verifies the SHA256 before extracting,
+- runs the same safe installer with your existing config.
+
+Use `-Yes` for unattended mode and `-Force` to reinstall the same version. The updater preserves your model, preset choice and `guard.log`.
+
 ---
 
 ## Dashboard
@@ -306,7 +320,7 @@ Start it manually:
 
 ### Browser tab is missing in OpenCode Desktop
 
-Fully quit and reopen OpenCode Desktop. Some 2.2.x Desktop builds temporarily lose the Browser launcher; a restart restores it. You can use the desktop `Ajan Panosu` shortcut in the meantime.
+Some 2.2.x Desktop builds temporarily lost the Browser launcher. The kit is tested with OpenCode Desktop 2.3.0; if the entry is still missing, fully quit and reopen Desktop. You can use the desktop `Ajan Panosu` shortcut in the meantime.
 
 ### Model not found / no model selected
 
@@ -359,7 +373,9 @@ This avoids the native background path entirely, at the cost of serializing thos
 
 ### Update badge
 
-The dashboard checks the latest GitHub release once an hour. If a newer release exists, click the green badge to open the release page. Re-running `install.cmd` is safe and preserves your model, preset choice and `guard.log`.
+The dashboard checks the latest GitHub release once an hour. If a newer release exists, click the green badge to open the release page, or run `update.cmd` for a SHA256-verified one-click update. Re-running `install.cmd` is also safe and preserves your model, preset choice and `guard.log`.
+
+The kit is tested with **OpenCode Desktop 2.3.0** and **OMO-slim 3.0.7**. OMO-slim 3.0.7 was the latest release at the time of writing.
 
 ### Notifications and auto-stop
 
@@ -399,6 +415,8 @@ doctor.cmd
 - The model list is sanitized before it reaches the browser; provider API keys and settings are never sent.
 - The diagnostic endpoint redacts common secret patterns from config summaries and log tails.
 - Project profiles are written only to `<project>\.opencode\oh-my-opencode-slim.json` after validating that the project directory exists.
+- `update.cmd` verifies the release SHA256 before extracting or running the installer.
+- `OpenCodeOrchestratorKit.exe` is unsigned by default. Sign it with `scripts\sign.ps1` and a trusted code-signing certificate before public distribution.
 - Do not expose port `43124` to a LAN or the internet without an authenticated reverse proxy.
 - Review third-party OpenCode plugins before installing them.
 
@@ -424,7 +442,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Türkçe
 
-**Sürüm:** 0.4.2  
+**Sürüm:** 0.4.3  
 **Platform:** Windows 10/11, macOS/Linux (deneysel)
 
 Bu kit, OpenCode Desktop + OMO-slim + Ajan Panosu + Board Guard kurulumunu tek tıkla yapar.
@@ -438,7 +456,7 @@ OMO-slim güçlü bir orkestrasyon katmanıdır; ancak OpenCode Desktop içinde 
 1. OpenCode Desktop 2.x kur.
 2. OpenCode'da istediğin provider/model'i seç. **OpenCode Go şart değil.**
 3. Node.js 22+ kur.
-4. ZIP'i çıkar ve `install.cmd` (veya GUI için `install-gui.cmd`) çalıştır.
+4. ZIP'i çıkar ve `install.cmd`, `install-gui.cmd` veya `OpenCodeOrchestratorKit.exe` çalıştır.
 5. OpenCode Desktop'ı tamamen kapatıp yeniden aç.
 6. Paneli aç: `http://127.0.0.1:43124/`
 
@@ -489,7 +507,8 @@ Sadece projenin `.opencode/plans/current.md` ve `.opencode/plans/boards/*.md` al
 - Model bulunamıyorsa: OpenCode'da önce bir provider/model seç; kit varsayılan olarak model pinlemez. Panelde **Modeller** butonunu kullan veya `doctor.cmd` çıktısındaki `Varsayilan model` satırına bak. Test edilmiş OpenCode Go setup'ı için `preset` değerini `opencode-go` yap.
 - Alt görev 15 dk+ güncellenmezse panelde `takıldı?` görünür; üst oturumu durdurup OpenCode'u yeniden başlat.
 - Kalıcı sorunda `backgroundJobs.sameProviderPolicy` ile aynı sağlayıcıdaki alt görevler foreground çalıştırılabilir; bu paralelliği azaltır.
-- Güncelleme rozeti çıkarsa release sayfasını aç; `install.cmd` güvenle tekrar çalıştırılabilir.
+- Güncelleme rozeti çıkarsa release sayfasını aç veya `update.cmd` çalıştır; SHA256 doğrulanır, `install.cmd` güvenle tekrar çalıştırılabilir.
+- Test edilen sürümler: **OpenCode Desktop 2.3.0** ve **OMO-slim 3.0.7**.
 - Bildirimler için **Ayarlar → Bildirim izni**; otomatik durdurma opt-in'dir ve eşik + 5 dk sonra çalışır. Otomatik yeniden deneme de opt-in'dir; otomatik durdurmadan 30 sn sonra oturum başına 1 kez çalışır.
 - Proje bazlı profil sorunluysa **Modeller → Bu proje için → Proje profilini sıfırla**.
 - Diagnostic ZIP: `%USERPROFILE%\.config\opencode\agent-board\diagnostic.cmd`
@@ -498,7 +517,7 @@ Sadece projenin `.opencode/plans/current.md` ve `.opencode/plans/boards/*.md` al
 
 ### Güvenlik
 
-Kit içinde API key yoktur. `service.json`, `.env`, yedekler ve loglar repoya dahil edilmez. Panel yalnızca `127.0.0.1` üzerinde dinler. Panel write endpoint'leri süreç başına `X-Panel-Token` ister; model listesi sanitize edilir, diagnostic çıktısındaki hassas desenler redakte edilir.
+Kit içinde API key yoktur. `service.json`, `.env`, yedekler ve loglar repoya dahil edilmez. Panel yalnızca `127.0.0.1` üzerinde dinler. Panel write endpoint'leri süreç başına `X-Panel-Token` ister; model listesi sanitize edilir, diagnostic çıktısındaki hassas desenler redakte edilir. `update.cmd` indirdiği ZIP'in SHA256'sını doğrular. `OpenCodeOrchestratorKit.exe` varsayılan olarak imzasızdır; public dağıtımdan önce `scripts\sign.ps1` ile imzalanmalıdır.
 
 ---
 

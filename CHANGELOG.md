@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.3 - 2026-11-13
+
+- Added `OpenCodeOrchestratorKit.exe`, a .NET Framework WinExe launcher for the GUI installer
+- Added `update.cmd` / `update.ps1` with GitHub latest-release download, SHA256 verification and safe reinstall
+- Added `scripts/build-launcher.ps1` and `scripts/sign.ps1` for build and code-signing workflows
+- Scoop and Winget manifests now target the EXE launcher; `winget validate` passes
+- Verified compatibility with OpenCode Desktop 2.3.0 and OMO-slim 3.0.7
+- Updated docs to state OpenCode Desktop 2.3.x is the tested version
+- CI now builds the launcher, validates the Winget manifest and parses the updater/signing scripts
+
 ## 0.4.2 - 2026-11-13
 
 - Added opt-in auto-retry after auto-stop: one retry prompt 30 seconds later, once per stuck session

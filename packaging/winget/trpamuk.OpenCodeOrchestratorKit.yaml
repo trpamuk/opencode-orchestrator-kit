@@ -1,9 +1,18 @@
 PackageIdentifier: trpamuk.OpenCodeOrchestratorKit
 PackageVersion: __VERSION__
+PackageLocale: en-US
 PackageName: OpenCode Orchestrator Kit
 Publisher: trpamuk
+PublisherUrl: https://github.com/trpamuk
+PublisherSupportUrl: https://github.com/trpamuk/opencode-orchestrator-kit/issues
+PrivacyUrl: https://github.com/trpamuk/opencode-orchestrator-kit/blob/main/SECURITY.md
+Author: trpamuk
+PackageUrl: https://github.com/trpamuk/opencode-orchestrator-kit
 License: MIT
+LicenseUrl: https://github.com/trpamuk/opencode-orchestrator-kit/blob/main/LICENSE
+Copyright: Copyright (c) 2026 trpamuk
 ShortDescription: One-click Windows setup for OpenCode + OMO-slim + Ajan Panosu + board guard
+Description: Windows installer for OpenCode Desktop, OMO-slim, the Ajan Panosu dashboard and the Board Guard plugin.
 Moniker: opencode-orchestrator-kit
 Tags:
   - opencode
@@ -17,7 +26,7 @@ Installers:
     InstallerSha256: __SHA256__
     NestedInstallerType: portable
     NestedInstallerFiles:
-      - RelativeFilePath: install.cmd
+      - RelativeFilePath: OpenCodeOrchestratorKit.exe
         PortableCommandAlias: opencode-orchestrator-kit
 ManifestType: singleton
 ManifestVersion: 1.6.0

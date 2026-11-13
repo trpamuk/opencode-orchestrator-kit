@@ -8,9 +8,15 @@
   "extract_dir": "",
   "bin": [
     [
-      "install.cmd",
-      "opencode-orchestrator-kit-install"
+      "OpenCodeOrchestratorKit.exe",
+      "opencode-orchestrator-kit"
     ]
   ],
-  "notes": "Run 'opencode-orchestrator-kit-install' once. The kit configures OpenCode, OMO-slim and the local dashboard."
+  "shortcuts": [
+    [
+      "OpenCodeOrchestratorKit.exe",
+      "OpenCode Orchestrator Kit"
+    ]
+  ],
+  "notes": "Run 'opencode-orchestrator-kit' once. The GUI installer configures OpenCode, OMO-slim and the local dashboard."
 }
