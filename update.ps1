@@ -5,6 +5,7 @@ param(
   [switch]$NoModelPrompt,
   [switch]$Yes,
   [switch]$Force,
+  [switch]$CheckOnly,
   [Alias("Version")][string]$RequestedVersion = "",
   [string]$Repo = "trpamuk/opencode-orchestrator-kit"
 )
@@ -21,11 +22,27 @@ $api = if ($requested) {
 } else {
   "https://api.github.com/repos/$Repo/releases/latest"
 }
-$release = Invoke-RestMethod -Uri $api -Headers @{ "User-Agent" = "opencode-orchestrator-kit-updater" } -TimeoutSec 30
+try {
+  $release = Invoke-RestMethod -Uri $api -Headers @{ "User-Agent" = "opencode-orchestrator-kit-updater" } -TimeoutSec 30
+} catch {
+  $label = if ($requested) { "v$requested" } else { "latest" }
+  throw "Release bulunamadi ($label): $($_.Exception.Message)"
+}
 $tag = [string]$release.tag_name
 $version = $tag.TrimStart("v")
 if ($requested -and $version -ne $requested) {
   throw "Requested v$requested but GitHub returned v$version."
+}
+if ($CheckOnly) {
+  Write-Host "Mevcut: v$localVersion"
+  Write-Host "Hedef: v$version"
+  if ($localVersion -eq $version) {
+    Write-Host "Zaten guncel." -ForegroundColor Green
+  } else {
+    Write-Host "Guncelleme mevcut: v$localVersion -> v$version" -ForegroundColor Yellow
+  }
+  Write-Host "Release: $($release.html_url)" -ForegroundColor DarkGray
+  exit 0
 }
 if ($localVersion -eq $version -and -not $Force) {
   Write-Host "Zaten guncel: v$version" -ForegroundColor Green

@@ -53,7 +53,12 @@ if ! command -v node >/dev/null 2>&1; then
   exit 1
 fi
 NODE_BIN="$(command -v node)"
-echo "Node: $NODE_BIN"
+NODE_VERSION="$("$NODE_BIN" -v 2>/dev/null | sed 's/^v//')"
+NODE_MAJOR="${NODE_VERSION%%.*}"
+echo "Node: $NODE_BIN ($NODE_VERSION)"
+if [[ "$NODE_MAJOR" =~ ^[0-9]+$ ]] && [[ "$NODE_MAJOR" -lt 22 ]]; then
+  echo "UYARI: Node.js 22+ onerilir; mevcut surum $NODE_VERSION." >&2
+fi
 
 if command -v opencode >/dev/null 2>&1; then
   echo "OpenCode CLI: $(command -v opencode)"
@@ -158,4 +163,5 @@ echo "Kurulum tamamlandi."
 echo "1. OpenCode Desktop'i tamamen kapatip yeniden ac."
 echo "2. OpenCode'da istedigin provider/model'i sec."
 echo "3. Panel: http://127.0.0.1:43124/"
-echo "4. Sorun olursa: doctor (Windows) veya panel /health."
+echo "4. Kontrol: ./doctor.sh"
+echo "5. Kaldirma: ./uninstall.sh (tamamen: ./uninstall.sh --purge)"

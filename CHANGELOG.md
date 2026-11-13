@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.9 - 2026-11-13
+
+- `update.ps1 -CheckOnly` checks the latest or a specific release without downloading or installing
+- Added `doctor.sh` and `uninstall.sh` for macOS/Linux, including `--config-dir`, `--dry-run` and `--purge`
+- `install.sh` now checks the Node.js major version and points to `doctor.sh`/`uninstall.sh`
+- Added `scripts/test-board-guard.mjs` for board isolation, worktree and agent-permission rules
+- CI now runs Board Guard tests and a Linux shell/installer smoke test
+- Documented the new cross-platform and updater options
+
 ## 0.4.8 - 2026-11-13
 
 - `update.ps1` now refuses a release that has no `.sha256` asset or an invalid checksum file; SHA256 verification is mandatory

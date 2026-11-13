@@ -1,6 +1,6 @@
 # OpenCode Orchestrator Kit
 
-**Version:** 0.4.8  
+**Version:** 0.4.9  
 **Platform:** Windows 10/11, macOS/Linux (experimental)  
 **Status:** early public preview
 
@@ -64,12 +64,15 @@ It does **not** replace OpenCode or OMO-slim. It configures them and adds the mi
 | `install-gui.cmd` | Optional WinForms installer with model selection |
 | `update.cmd` | SHA256-verified one-click update |
 | `install.sh` | Experimental macOS/Linux installer |
+| `doctor.sh` | macOS/Linux setup checks |
+| `uninstall.sh` | macOS/Linux service/shortcut removal; `--purge` removes kit files |
 | `diagnostic.cmd` | Creates a redacted diagnostic ZIP |
 | `scripts/release.ps1` | Maintainer release, SHA256 and packaging helper |
 | `scripts/sign.ps1` | Code-signing helper for a user-provided certificate |
 | `scripts/verify-release.ps1` | Verifies local or online release assets, SHA256, versions and signature |
 | `scripts/test-panel.mjs` | Panel token, origin, asset-traversal and diagnostic-redaction tests |
-| `.github/workflows/ci.yml` | Windows CI for syntax, installer, config and signing tests |
+| `scripts/test-board-guard.mjs` | Board isolation, worktree and agent-permission tests |
+| `.github/workflows/ci.yml` | Windows and Linux CI for syntax, installers, config, signing and isolation tests |
 | `.github/workflows/release.yml` | Optional signed release workflow |
 | `docs/signing.md` | Code-signing and Winget submission guide |
 | `doctor.cmd` | Checks the installed setup |
@@ -103,7 +106,7 @@ This is the important part:
 6. Open the dashboard
 ```
 
-On Windows, `install-gui.cmd` offers a WinForms wizard with a searchable model list. On macOS/Linux, use `./install.sh` (experimental) and select the model inside OpenCode.
+On Windows, `install-gui.cmd` offers a WinForms wizard with a searchable model list. On macOS/Linux, use `bash install.sh` (experimental) and select the model inside OpenCode. Check the setup with `bash doctor.sh`; remove the service and shortcuts with `bash uninstall.sh`, or add `--purge` to remove the installed kit files while keeping your OpenCode config.
 
 You do **not** need to install OMO-slim manually. The kit writes the OMO-slim plugin configuration and lets OpenCode install the pinned `oh-my-opencode-slim@3.0.7` package on startup.
 
@@ -221,7 +224,14 @@ Run **`update.cmd`** (or `update.ps1`). It:
 - requires and verifies the SHA256 before extracting,
 - runs the same safe installer with your existing config.
 
-Use `-Yes` for unattended mode and `-Force` to reinstall the same version. Use `-Version 0.4.7` to install or roll back to a specific release. The updater preserves your model, preset choice and `guard.log`, requires the release `.sha256`, and verifies that the release tag, asset name and embedded `VERSION` files match before installing.
+Use `-Yes` for unattended mode and `-Force` to reinstall the same version. Use `-Version 0.4.8` to install or roll back to a specific release. The updater preserves your model, preset choice and `guard.log`, requires the release `.sha256`, and verifies that the release tag, asset name and embedded `VERSION` files match before installing.
+
+Use `-CheckOnly` to check the latest or a specific release without downloading:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File update.ps1 -CheckOnly
+powershell -NoProfile -ExecutionPolicy Bypass -File update.ps1 -CheckOnly -Version 0.4.8
+```
 
 ### Maintainer release and signing
 
@@ -231,7 +241,7 @@ To sign the launcher, pass a certificate thumbprint (or `-PfxPath` / `-PfxPasswo
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\release.ps1 `
-  -Version 0.4.8 `
+  -Version 0.4.9 `
   -CertificateThumbprint <thumbprint> `
   -Publish
 ```
@@ -241,8 +251,8 @@ The `Release` GitHub Actions workflow can build and publish with the `WINDOWS_CE
 Verify a local or published release:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.8
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.8 -Online -RequireSignature
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.9
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.9 -Online -RequireSignature
 ```
 
 The verifier checks the SHA256, embedded `VERSION` files, required ZIP entries, launcher version and signature, and the Scoop/Winget manifest URLs and hashes.
@@ -471,7 +481,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Türkçe
 
-**Sürüm:** 0.4.8  
+**Sürüm:** 0.4.9  
 **Platform:** Windows 10/11, macOS/Linux (deneysel)
 
 Bu kit, OpenCode Desktop + OMO-slim + Ajan Panosu + Board Guard kurulumunu tek tıkla yapar.
@@ -489,7 +499,7 @@ OMO-slim güçlü bir orkestrasyon katmanıdır; ancak OpenCode Desktop içinde 
 5. OpenCode Desktop'ı tamamen kapatıp yeniden aç.
 6. Paneli aç: `http://127.0.0.1:43124/`
 
-macOS/Linux'ta `./install.sh` kullanılabilir (deneysel). OMO-slim'i ayrıca kurmana gerek yok; kit gerekli config'i yazar ve OpenCode `oh-my-opencode-slim@3.0.7` paketini kendisi yükler.
+macOS/Linux'ta `bash install.sh`, `bash doctor.sh` ve `bash uninstall.sh` kullanılabilir (deneysel). OMO-slim'i ayrıca kurmana gerek yok; kit gerekli config'i yazar ve OpenCode `oh-my-opencode-slim@3.0.7` paketini kendisi yükler.
 
 ### Model özgürlüğü
 
