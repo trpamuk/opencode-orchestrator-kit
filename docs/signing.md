@@ -28,7 +28,7 @@ Build and sign a release:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\release.ps1 `
-  -Version 0.4.17 `
+  -Version 0.4.18 `
   -CertificateThumbprint <thumbprint> `
   -Publish
 ```
@@ -41,7 +41,7 @@ You can skip the certificate store:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\release.ps1 `
-  -Version 0.4.17 `
+  -Version 0.4.18 `
   -PfxPath .\codesign.pfx `
   -PfxPassword "<password>" `
   -Publish
@@ -116,10 +116,10 @@ If the secrets are missing, the workflow builds an unsigned release and prints a
 
 ```powershell
 # Local dist folder
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.17
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.18
 
 # Download the GitHub release assets and require a trusted signature
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.17 -Online -RequireSignature
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.18 -Online -RequireSignature
 ```
 
 It verifies the SHA256, embedded `VERSION` and `agent-board/VERSION`, required ZIP entries, launcher file version, launcher signature, and the Scoop/Winget manifest version, URL and hash.

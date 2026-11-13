@@ -273,19 +273,24 @@ function taskFromPart(session, message, part, stuckMs = STUCK_MS) {
   if (part.name !== "subagent" && part.name !== "task") return null;
   const state = part.state || {};
   const input = state.input || {};
+  const metadata = state.metadata || {};
   const agent = input.agent || input.subagent_type || input.subagentType || null;
   if (!agent) return null;
+  const childSessionID = metadata.sessionID || input.sessionID || null;
   const startedAt =
     state.time?.created || state.time?.ran || message.time?.created || null;
-  const completedAt = state.time?.completed || message.time?.completed || null;
-  const status = state.status || "unknown";
+  const status = metadata.status || state.status || "unknown";
   const running = status === "running";
+  const completedAt = running
+    ? null
+    : state.time?.completed || message.time?.completed || null;
   const lastActivityAt = Math.max(
     Number(session.time?.updated) || 0,
     Number(message.time?.completed) || 0,
     Number(message.time?.created) || 0,
     Number(state.time?.ran) || 0,
     Number(state.time?.completed) || 0,
+    Number(metadata.time?.updated) || 0,
   );
   const stuck = Boolean(
     running &&
@@ -307,14 +312,17 @@ function taskFromPart(session, message, part, stuckMs = STUCK_MS) {
     agent,
     description,
     status,
+    running,
+    childSessionID,
     background: input.background === true,
     startedAt,
     completedAt,
     elapsedMs: startedAt
       ? Math.max(0, (completedAt || Date.now()) - startedAt)
       : null,
+    lastActivityAt,
     stuck,
-    error: state.error?.message || null,
+    error: metadata.error || state.error?.message || null,
   };
 }
 
@@ -379,6 +387,39 @@ async function collectTasks(sessions, activeMap, stuckMs = STUCK_MS) {
   const tasks = results.flatMap((result) =>
     result.status === "fulfilled" ? result.value : [],
   );
+  const sessionsById = new Map(sessions.map((session) => [session.id, session]));
+  for (const task of tasks) {
+    task.parentOutcome = sessionsById.get(task.sessionID)?.outcome || null;
+    const child = task.childSessionID
+      ? sessionsById.get(task.childSessionID)
+      : null;
+    if (child) {
+      task.childOutcome = child.outcome || null;
+      task.lastActivityAt = Math.max(
+        task.lastActivityAt || 0,
+        Number(child.time?.updated) || 0,
+      );
+      if (
+        child.outcome === "succeeded" ||
+        child.outcome === "failed" ||
+        child.outcome === "interrupted"
+      ) {
+        task.status =
+          child.outcome === "succeeded" ? "completed" : child.outcome;
+        task.running = false;
+        task.completedAt = child.time?.updated || task.completedAt;
+        task.elapsedMs = task.startedAt
+          ? Math.max(0, (task.completedAt || Date.now()) - task.startedAt)
+          : null;
+      }
+    }
+    task.stuck = Boolean(
+      task.running &&
+        task.startedAt &&
+        now - task.startedAt > stuckMs &&
+        now - (task.lastActivityAt || 0) > stuckMs,
+    );
+  }
   const seen = new Set();
   const rank = (task) =>
     task.stuck ? 0 : task.status === "running" ? 1 : task.status === "error" ? 2 : 3;

@@ -621,6 +621,7 @@ function fmtCost(n){n=Number(n)||0; if(n>=0.01) return "$"+n.toFixed(2); if(n>0)
 function fmtDuration(ms){if(!ms||ms<0) return ""; const sec=Math.floor(ms/1000); if(sec<60) return sec+"sn"; const min=Math.floor(sec/60); if(min<60) return min+"dk"; const hr=Math.floor(min/60); if(hr<24) return hr+"sa "+(min%60)+"dk"; return Math.floor(hr/24)+"g "+(hr%24)+"sa";}
 function taskStatus(t){
   if(t.stuck) return {label:"takıldı?",cls:"stuck"};
+  if(t.parentOutcome==="interrupted" && t.status==="running") return {label:"iptal",cls:"idle"};
   if(t.status==="running") return {label:"çalışıyor",cls:"running"};
   if(t.status==="error") return /interrupt|abort|cancel/i.test(t.error||"") ? {label:"iptal",cls:"failed"} : {label:"hata",cls:"failed"};
   if(t.status==="cancelled") return {label:"iptal",cls:"idle"};
@@ -705,11 +706,11 @@ function renderTasks(){
   const stuck=tasks.filter(t=>t.stuck).length;
   taskSummaryEl.textContent=tasks.length+" görev"+(stuck?" · "+stuck+" takıldı?":"");
   tasksEl.innerHTML=tasks.slice(0,12).map(t=>{
-    const a=agentInfo(t.agent); const name=a.name||t.agent||"?";
+    const a=agentInfo(t.agent); const name=a.name||t.agent||"?"; const canRecover=t.stuck||t.status==="error"||t.parentOutcome==="interrupted";
     const st=taskStatus(t); const parent=(state.sessions||[]).find(s=>s.id===t.sessionID);
     return '<article class="task-card '+st.cls+'">'+
       '<img class="avatar" src="'+esc(avatarFor(t.agent))+'" alt="'+esc(name)+'" />'+
-      '<div><div class="row"><span class="agent-name">'+esc(name)+'</span><span class="badge '+st.cls+'">'+esc(st.label)+'</span><span class="pill">#'+esc(t.agent)+'</span><span class="spacer"></span><span class="metric">'+esc(fmtDuration(t.elapsedMs))+'</span><button class="top-btn" data-detail-session="'+esc(t.sessionID)+'">Detay</button>'+(t.stuck?'<button class="top-btn" data-recover-session="'+esc(t.sessionID)+'" data-recover-label="'+esc(name+" — "+(t.description||t.tool))+'" data-recover-description="'+esc(t.description||t.tool)+'">Kurtar</button><button class="stop-btn" data-stop-session="'+esc(t.sessionID)+'" data-stop-label="'+esc(name+" — "+(t.description||t.tool))+'">Durdur</button>':'')+'</div>'+
+      '<div><div class="row"><span class="agent-name">'+esc(name)+'</span><span class="badge '+st.cls+'">'+esc(st.label)+'</span><span class="pill">#'+esc(t.agent)+'</span><span class="spacer"></span><span class="metric">'+esc(fmtDuration(t.elapsedMs))+'</span><button class="top-btn" data-detail-session="'+esc(t.sessionID)+'">Detay</button>'+(canRecover?'<button class="top-btn" data-recover-session="'+esc(t.sessionID)+'" data-recover-label="'+esc(name+" — "+(t.description||t.tool))+'" data-recover-description="'+esc(t.description||t.tool)+'">Kurtar</button>':'')+(t.stuck?'<button class="stop-btn" data-stop-session="'+esc(t.sessionID)+'" data-stop-label="'+esc(name+" — "+(t.description||t.tool))+'">Durdur</button>':'')+'</div>'+
       '<div class="task-title" title="'+esc(t.description||t.tool)+'">'+esc(t.description||t.tool)+'</div>'+
       '<div class="task-meta"><span>üst: '+esc(parent?.title||t.sessionTitle||t.sessionID)+'</span><span>oturum #'+esc(shortId(t.sessionID))+'</span>'+(t.stuck?'<span>'+Math.round(settings.stuckMs/60000)+' dk+ güncelleme yok</span>':'')+'</div>'+
       '</div></article>';

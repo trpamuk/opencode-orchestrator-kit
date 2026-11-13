@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.18 - 2026-11-13
+
+- Background subagent tasks are now tracked through `state.metadata.sessionID`; the panel uses the child session's outcome and last update for status and stuck detection
+- **Kurtar** now appears on errored tasks and on tasks whose parent session is `interrupted`, not only on stuck tasks
+- Interrupted-parent tasks show **iptal** instead of a misleading **çalışıyor**
+- This fixes the exploration-freeze case where the parent session was interrupted but its subagent cards stayed in a running-looking state
+
 ## 0.4.17 - 2026-11-13
 
 - Added **Otomatik kurtar**: when a subagent stays stuck for the configured threshold, the panel interrupts it and retries it once
