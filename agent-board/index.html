@@ -804,8 +804,9 @@ function filterDetailTools(query){
     row.hidden=Boolean(q) && !row.innerText.toLowerCase().includes(q);
   });
 }
-function lineageRows(sessionID){
-  const byId=new Map((state.sessions||[]).map(s=>[s.id,s]));
+function lineageRows(sessionID,extra=[]){
+  const all=[...(state.sessions||[]),...extra];
+  const byId=new Map(all.map(s=>[s.id,s]));
   let root=byId.get(sessionID);
   const seen=new Set();
   while(root?.parentID && byId.has(root.parentID) && !seen.has(root.id)){
@@ -813,7 +814,7 @@ function lineageRows(sessionID){
     root=byId.get(root.parentID);
   }
   const children=new Map();
-  for(const s of (state.sessions||[])){
+  for(const s of all){
     if(!s.parentID) continue;
     if(!children.has(s.parentID)) children.set(s.parentID,[]);
     children.get(s.parentID).push(s);
@@ -827,8 +828,8 @@ function lineageRows(sessionID){
   walk(root||byId.get(sessionID),0);
   return rows;
 }
-function renderLineage(sessionID){
-  const rows=lineageRows(sessionID);
+function renderLineage(sessionID,extra=[]){
+  const rows=lineageRows(sessionID,extra);
   if(rows.length<=1) return "";
   return '<h2 style="margin-top:12px">Oturum Ağacı</h2>'+rows.map(({s,depth})=>{
     const st=statusFor(s);
@@ -949,7 +950,7 @@ function renderDetail(data){
     (stuck?'<div class="row" style="margin-bottom:9px"><button class="stop-btn" data-stop-session="'+esc(session.id)+'" data-stop-label="'+esc(session.title||session.id)+'">Durdur</button></div>':'')+
     '<h2 style="margin-top:12px">Son Tool Çağrıları</h2>'+
     (toolRows||'<div class="empty">Tool çağrısı yok.</div>')+
-    renderLineage(session.id);
+    renderLineage(session.id, data.children || []);
 }
 async function refresh(){
   const activeScroll=activeEl.parentElement?.scrollTop||0;

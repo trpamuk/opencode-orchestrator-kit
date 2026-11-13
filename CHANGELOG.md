@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.1 - 2026-11-13
+
+- Session detail now fetches child sessions directly from OpenCode, so the lineage tree is complete even when the project session list is truncated
+
 ## 0.4.0 - 2026-11-13
 
 - Added panel version display and GitHub release update check

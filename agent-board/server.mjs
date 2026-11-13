@@ -847,6 +847,27 @@ function toolDescription(name, input) {
   );
 }
 
+async function getSessionChildren(sessionID) {
+  try {
+    const response = await upstream(
+      `/api/session?parentID=${encodeURIComponent(sessionID)}&limit=50`,
+      8000,
+    );
+    const list = Array.isArray(response) ? response : response.data || [];
+    return list.map((session) => ({
+      id: session.id,
+      parentID: session.parentID,
+      agent: session.agent,
+      title: session.title,
+      outcome: session.outcome,
+      time: session.time,
+      location: session.location,
+    }));
+  } catch {
+    return [];
+  }
+}
+
 async function getSessionDetail(sessionID) {
   const sessionResponse = await upstream(
     `/api/session/${encodeURIComponent(sessionID)}`,
@@ -920,6 +941,7 @@ async function getSessionDetail(sessionID) {
     },
     tools: tools.slice(0, 30),
     errors: errors.slice(0, 10),
+    children: await getSessionChildren(sessionID),
   };
 }
 
