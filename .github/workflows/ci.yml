@@ -62,6 +62,7 @@ jobs:
             "doctor.ps1",
             "scripts/release.ps1",
             "scripts/build-launcher.ps1",
+            "scripts/build-icon.ps1",
             "scripts/sign.ps1",
             "scripts/verify-release.ps1",
             "agent-board/diagnostic.ps1"

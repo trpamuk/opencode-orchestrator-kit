@@ -1,6 +1,9 @@
 name: Release
 
 on:
+  push:
+    tags:
+      - "v*"
   workflow_dispatch:
     inputs:
       version:
@@ -24,13 +27,49 @@ jobs:
       CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
 
+      - name: Resolve release
+        id: release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ("${{ github.event_name }}" -eq "push") {
+            $version = "${{ github.ref_name }}".TrimStart("v")
+            $publish = "true"
+          } else {
+            $version = "${{ inputs.version }}".Trim()
+            $publish = "${{ inputs.publish }}"
+          }
+          "VERSION=$version" >> $env:GITHUB_ENV
+          "PUBLISH=$publish" >> $env:GITHUB_ENV
+
+          $exists = "0"
+          if ($publish -eq "true") {
+            for ($attempt = 0; $attempt -lt 5; $attempt++) {
+              gh release view "v$version" 2>$null | Out-Null
+              if ($LASTEXITCODE -eq 0) {
+                $exists = "1"
+                break
+              }
+              Start-Sleep -Seconds 2
+            }
+          }
+          "RELEASE_EXISTS=$exists" >> $env:GITHUB_ENV
+          if ($exists -eq "1") {
+            Write-Host "Release v$version already exists; skipping build and publish."
+          } else {
+            Write-Host "Release v$version will be built (publish=$publish)."
+          }
+
       - name: Import code-signing certificate
-        if: env.CERT_PFX_BASE64 != ''
+        if: env.RELEASE_EXISTS != '1' && env.CERT_PFX_BASE64 != ''
         shell: pwsh
         run: |
           $pfx = Join-Path $env:RUNNER_TEMP "codesign.pfx"
@@ -42,11 +81,12 @@ jobs:
           Write-Host "Imported code-signing certificate: $($cert.Subject)"
 
       - name: Build release
+        if: env.RELEASE_EXISTS != '1'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $version = "${{ inputs.version }}"
+          $version = $env:VERSION
           $releaseArgs = @(
             "-NoProfile",
             "-ExecutionPolicy", "Bypass",
@@ -55,20 +95,32 @@ jobs:
           )
           if ($env:CERT_THUMBPRINT) {
             $releaseArgs += @("-CertificateThumbprint", $env:CERT_THUMBPRINT)
+          } elseif ("${{ github.event_name }}" -eq "push") {
+            throw "A tag-triggered release requires WINDOWS_CERT_PFX_BASE64 and WINDOWS_CERT_PASSWORD secrets."
           } else {
             Write-Warning "No signing certificate secret configured; building an unsigned launcher."
           }
-          if ("${{ inputs.publish }}" -eq "true") {
+          if ($env:PUBLISH -eq "true") {
             $releaseArgs += "-Publish"
           }
           powershell @releaseArgs
 
       - name: Upload release artifacts
+        if: env.RELEASE_EXISTS != '1'
         uses: actions/upload-artifact@v4
         with:
-          name: release-v${{ inputs.version }}
+          name: release-${{ env.VERSION }}
           path: |
             dist/opencode-orchestrator-kit-v*.zip
             dist/opencode-orchestrator-kit-v*.zip.sha256
             dist/packaging/*
           if-no-files-found: error
+
+      - name: Summary
+        shell: pwsh
+        run: |
+          if ($env:RELEASE_EXISTS -eq "1") {
+            "Release v$env:VERSION already exists; no build was run." >> $env:GITHUB_STEP_SUMMARY
+          } else {
+            "Built release v$env:VERSION (publish=$env:PUBLISH)." >> $env:GITHUB_STEP_SUMMARY
+          }

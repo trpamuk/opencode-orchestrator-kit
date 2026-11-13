@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.12 - 2026-11-13
+
+- Added a generated multi-size launcher icon (`launcher/icon.ico`) and `scripts/build-icon.ps1`
+- `scripts/build-launcher.ps1` now embeds the icon in `OpenCodeOrchestratorKit.exe`
+- The Release workflow now runs on `v*` tag pushes: it skips if the release already exists, otherwise it builds and publishes (signing secrets required)
+- `release.ps1` uses `--verify-tag` when the tag already exists and `--target` when it creates the tag
+- Release verification now checks the icon and icon builder in the ZIP
+
 ## 0.4.11 - 2026-11-13
 
 - Board Guard now canonicalizes the target path before `path.relative`, fixing false denials for board files under `boards/*.md` on Windows short paths

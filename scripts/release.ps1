@@ -106,6 +106,22 @@ if ($Publish) {
   if (-not $Notes) {
     $Notes = "Release v" + $Version
   }
+  $tagName = "v" + $Version
   $target = (git rev-parse HEAD).Trim()
-  gh release create ("v" + $Version) $zip $shaFile (Join-Path $pkg "opencode-orchestrator-kit.json") (Join-Path $pkg "trpamuk.OpenCodeOrchestratorKit.yaml") --target $target --title ("v" + $Version) --notes $Notes
+  git rev-parse -q --verify "refs/tags/$tagName" 2>$null | Out-Null
+  $tagExists = $LASTEXITCODE -eq 0
+  $releaseArgs = @(
+    $tagName,
+    $zip,
+    $shaFile,
+    (Join-Path $pkg "opencode-orchestrator-kit.json"),
+    (Join-Path $pkg "trpamuk.OpenCodeOrchestratorKit.yaml")
+  )
+  if ($tagExists) {
+    $releaseArgs += "--verify-tag"
+  } else {
+    $releaseArgs += @("--target", $target)
+  }
+  $releaseArgs += @("--title", $tagName, "--notes", $Notes)
+  gh release create @releaseArgs
 }

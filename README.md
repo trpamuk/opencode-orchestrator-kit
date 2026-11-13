@@ -1,6 +1,6 @@
 # OpenCode Orchestrator Kit
 
-**Version:** 0.4.11  
+**Version:** 0.4.12  
 **Platform:** Windows 10/11, macOS/Linux (experimental)  
 **Status:** early public preview
 
@@ -29,6 +29,8 @@ A one-click Windows bootstrap for a practical multi-agent OpenCode setup:
 - **Installers:** WinForms GUI on Windows and an experimental `install.sh` for macOS/Linux.
 - **Release tooling:** SHA256 checksums, Scoop manifest, Winget template and GitHub Actions CI.
 - **Signing pipeline:** PFX/thumbprint signing, a CI signing smoke test and an optional signed release workflow.
+- **Branded launcher:** a generated multi-size icon is embedded in `OpenCodeOrchestratorKit.exe`.
+- **Tag releases:** pushing a `v*` tag triggers the Release workflow; existing releases are skipped safely.
 
 ---
 
@@ -61,6 +63,8 @@ It does **not** replace OpenCode or OMO-slim. It configures them and adds the mi
 | Startup shortcut | Starts the dashboard server automatically |
 | Desktop shortcut | Opens the dashboard in a browser |
 | `OpenCodeOrchestratorKit.exe` | .NET Framework WinExe launcher for the GUI installer |
+| `launcher/icon.ico` | Multi-size launcher icon |
+| `scripts/build-icon.ps1` | Regenerates `launcher/icon.ico` |
 | `install-gui.cmd` | Optional WinForms installer with model selection |
 | `update.cmd` | SHA256-verified one-click update |
 | `install.sh` | Experimental macOS/Linux installer |
@@ -241,18 +245,18 @@ To sign the launcher, pass a certificate thumbprint (or `-PfxPath` / `-PfxPasswo
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\release.ps1 `
-  -Version 0.4.11 `
+  -Version 0.4.12 `
   -CertificateThumbprint <thumbprint> `
   -Publish
 ```
 
-The `Release` GitHub Actions workflow can build and publish with the `WINDOWS_CERT_PFX_BASE64` and `WINDOWS_CERT_PASSWORD` repository secrets. See [docs/signing.md](docs/signing.md) for certificate setup, verification, self-signed testing and Winget submission.
+The `Release` GitHub Actions workflow can build and publish with the `WINDOWS_CERT_PFX_BASE64` and `WINDOWS_CERT_PASSWORD` repository secrets. Pushing a `v*` tag triggers it automatically; if a release already exists it skips, otherwise it builds and publishes (signing secrets are required for tag-triggered publishing). See [docs/signing.md](docs/signing.md) for certificate setup, verification, self-signed testing and Winget submission.
 
 Verify a local or published release:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.11
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.11 -Online -RequireSignature
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.12
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.12 -Online -RequireSignature
 ```
 
 The verifier checks the SHA256, embedded `VERSION` files, required ZIP entries, launcher version and signature, and the Scoop/Winget manifest URLs and hashes.
@@ -481,7 +485,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Türkçe
 
-**Sürüm:** 0.4.11  
+**Sürüm:** 0.4.12  
 **Platform:** Windows 10/11, macOS/Linux (deneysel)
 
 Bu kit, OpenCode Desktop + OMO-slim + Ajan Panosu + Board Guard kurulumunu tek tıkla yapar.
