@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.19 - 2026-11-18
+
+- Verified compatibility with OpenCode Desktop 2.3.2: panel state, models, session detail, model test, retry and interrupt all pass; OMO-slim health check passes
+- Updated the tested-version documentation to OpenCode Desktop 2.3.2
+- The live OMO config now uses `backgroundJobs.wallClockTimeoutMs: 0` (the kit default) instead of the old 30-minute deadline
+- The live panel uses a 5-minute stuck threshold with auto-recover enabled
+- OMO-slim 3.0.7 remains the latest npm/GitHub release; the upstream V2 fixes are on master but not yet published
+
 ## 0.4.18 - 2026-11-13
 
 - Background subagent tasks are now tracked through `state.metadata.sessionID`; the panel uses the child session's outcome and last update for status and stuck detection

@@ -1,6 +1,6 @@
 # OpenCode Orchestrator Kit
 
-**Version:** 0.4.18  
+**Version:** 0.4.19  
 **Platform:** Windows 10/11, macOS/Linux (experimental)  
 **Status:** early public preview
 
@@ -90,7 +90,7 @@ It does **not** replace OpenCode or OMO-slim. It configures them and adds the mi
 
 Before running the kit, install:
 
-1. **OpenCode Desktop 2.3.x** (2.x supported; 2.3.0 is the tested version)
+1. **OpenCode Desktop 2.3.x** (2.x supported; 2.3.2 is the tested version)
 2. **Node.js 22+**
 3. **Any working provider/model configured in OpenCode** (OpenCode Go is optional)
 4. **Git** (recommended; Board Guard uses it to resolve the repository root)
@@ -248,7 +248,7 @@ To sign the launcher, pass a certificate thumbprint (or `-PfxPath` / `-PfxPasswo
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\release.ps1 `
-  -Version 0.4.18 `
+  -Version 0.4.19 `
   -CertificateThumbprint <thumbprint> `
   -Publish
 ```
@@ -258,8 +258,8 @@ The `Release` GitHub Actions workflow can build and publish with the `WINDOWS_CE
 Verify a local or published release:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.18
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.18 -Online -RequireSignature
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.19
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.19 -Online -RequireSignature
 ```
 
 The verifier checks the SHA256, embedded `VERSION` files, required ZIP entries, launcher version and signature, and the Scoop/Winget manifest URLs and hashes.
@@ -366,7 +366,7 @@ Start it manually:
 
 ### Browser tab is missing in OpenCode Desktop
 
-Some 2.2.x Desktop builds temporarily lost the Browser launcher. The kit is tested with OpenCode Desktop 2.3.0; if the entry is still missing, fully quit and reopen Desktop. You can use the desktop `Ajan Panosu` shortcut in the meantime.
+Some 2.2.x Desktop builds temporarily lost the Browser launcher. The kit is tested with OpenCode Desktop 2.3.2; if the entry is still missing, fully quit and reopen Desktop. You can use the desktop `Ajan Panosu` shortcut in the meantime.
 
 ### Model not found / no model selected
 
@@ -421,7 +421,7 @@ This avoids the native background path entirely, at the cost of serializing thos
 
 Check the actual session outcome first: open **Detay**, look at the last message/tool, or ask the orchestrator for `task_status`. Three upstream issues can look similar:
 
-1. **The spinner keeps spinning but the session is `succeeded`.** OMO-slim 3.0.7 cannot read `client.session.status` on OpenCode 2.3.0 V2, so a finished background task can stay marked `running` (OMO #1877). Restarting OpenCode does not clear it. Ask the orchestrator to run `task_cancel <taskID>`; that closes the stale board record. An upstream fix is pending.
+1. **The spinner keeps spinning but the session is `succeeded`.** OMO-slim 3.0.7 cannot read `client.session.status` on OpenCode 2.3.x V2, so a finished background task can stay marked `running` (OMO #1877). Restarting OpenCode does not clear it. Ask the orchestrator to run `task_cancel <taskID>`; that closes the stale board record. An upstream fix is pending.
 2. **The child ends with `interrupted` / `Step interrupted`.** OpenCode core aborts a foreground subagent when its parent session is shut down or stopped (OpenCode #61413). Do not close OpenCode Desktop or stop the parent while subagents are running; let them finish. The core fix is pending (PR #61414).
 3. **No activity for a long time and the session stays busy.** A provider stream can stall without an error (OpenCode #53747, #59565, #57127). Interrupt the child/parent, check `git status`, then retry. Check the provider's `timeout`/`chunkTimeout` settings and lower `backgroundJobs.concurrency.defaultConcurrency` if you use a rate-limited provider.
 
@@ -433,7 +433,7 @@ For a fast recovery loop, set the panel stuck threshold to **5 minutes** and ena
 
 The dashboard checks the latest GitHub release once an hour. If a newer release exists, click the green badge to open the release page, or run `update.cmd` for a SHA256-verified one-click update. Re-running `install.cmd` is also safe and preserves your model, preset choice and `guard.log`.
 
-The kit is tested with **OpenCode Desktop 2.3.0** and **OMO-slim 3.0.7**. OMO-slim 3.0.7 was the latest release at the time of writing.
+The kit is tested with **OpenCode Desktop 2.3.2** and **OMO-slim 3.0.7**. OMO-slim 3.0.7 was the latest release at the time of writing.
 
 ### Appearance
 
@@ -513,7 +513,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Türkçe
 
-**Sürüm:** 0.4.18  
+**Sürüm:** 0.4.19  
 **Platform:** Windows 10/11, macOS/Linux (deneysel)
 
 Bu kit, OpenCode Desktop + OMO-slim + Ajan Panosu + Board Guard kurulumunu tek tıkla yapar.
@@ -580,7 +580,7 @@ Sadece projenin `.opencode/plans/current.md` ve `.opencode/plans/boards/*.md` al
 - Alt görev 15 dk+ güncellenmezse panelde `takıldı?` görünür; üst oturumu durdurup OpenCode'u yeniden başlat.
 - Kalıcı sorunda `backgroundJobs.sameProviderPolicy` ile aynı sağlayıcıdaki alt görevler foreground çalıştırılabilir; bu paralelliği azaltır.
 - Güncelleme rozeti çıkarsa release sayfasını aç veya `update.cmd` çalıştır; SHA256 doğrulanır, `install.cmd` güvenle tekrar çalıştırılabilir.
-- Test edilen sürümler: **OpenCode Desktop 2.3.0** ve **OMO-slim 3.0.7**.
+- Test edilen sürümler: **OpenCode Desktop 2.3.2** ve **OMO-slim 3.0.7**.
 - Bildirimler için **Ayarlar → Bildirim izni**; otomatik durdurma opt-in'dir ve eşik + 5 dk sonra çalışır. Otomatik yeniden deneme de opt-in'dir; otomatik durdurmadan 30 sn sonra oturum başına 1 kez çalışır.
 - Proje bazlı profil sorunluysa **Modeller → Bu proje için → Proje profilini sıfırla**.
 - Diagnostic ZIP: `%USERPROFILE%\.config\opencode\agent-board\diagnostic.cmd`
