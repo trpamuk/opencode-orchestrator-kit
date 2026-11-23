@@ -74,12 +74,12 @@ if [[ -n "$NODE_BIN" && -f "$CONFIG_DIR/opencode.json" ]]; then
     const fs = require("fs");
     try {
       const config = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
-      console.log((config.plugins || []).includes("oh-my-opencode-slim@3.0.7") ? "1" : "0");
+      console.log((config.plugins || []).includes("oh-my-opencode-slim@3.0.8") ? "1" : "0");
     } catch {
       console.log("0");
     }
   ' "$CONFIG_DIR/opencode.json" 2>/dev/null || echo 0)"
-  check "OMO-slim plugin" "$PLUGIN_OK" "oh-my-opencode-slim@3.0.7"
+  check "OMO-slim plugin" "$PLUGIN_OK" "oh-my-opencode-slim@3.0.8"
 fi
 
 if [[ -n "$NODE_BIN" && -f "$CONFIG_DIR/oh-my-opencode-slim.json" ]]; then
@@ -98,12 +98,12 @@ if [[ -n "$NODE_BIN" && -f "$CONFIG_DIR/oh-my-opencode-slim.json" ]]; then
     const fs = require("fs");
     try {
       const config = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
-      console.log(String(config.$schema || "").includes("3.0.7") ? "1" : "0");
+      console.log(String(config.$schema || "").includes("3.0.8") ? "1" : "0");
     } catch {
       console.log("0");
     }
   ' "$CONFIG_DIR/oh-my-opencode-slim.json" 2>/dev/null || echo 0)"
-  check "OMO-slim schema 3.0.7" "$OMO_SCHEMA"
+  check "OMO-slim schema 3.0.8" "$OMO_SCHEMA"
 
   OMO_PRESET="$("$NODE_BIN" -e '
     const fs = require("fs");

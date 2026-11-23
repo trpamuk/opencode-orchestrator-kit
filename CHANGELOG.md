@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.0 - 2026-11-23
+
+- Updated to **OMO-slim 3.0.8**, which requires OpenCode 2.3+ and uses the native subagent lifecycle
+- Migrated the OMO config to 3.0.8: `backgroundJobs.mode: "native"`; removed the retired `concurrency`, `wallClockTimeoutMs` and `sameProviderPolicy` keys
+- Updated the OMO schema URL, plugin pin, doctor checks and CI checks to 3.0.8
+- Verified compatibility with **OpenCode Desktop 2.4.0**: panel state, models, session detail, model test, retry and interrupt pass; OMO health check passes
+- OMO-slim 3.0.8 brings native child task state, task_report wakeups, kill-all subagent handling and the stale-sidebar fixes
+- Documented the 2.4.0 built-in browser, automations and the removed 3.0.8 background-job settings
+
 ## 0.4.19 - 2026-11-18
 
 - Verified compatibility with OpenCode Desktop 2.3.2: panel state, models, session detail, model test, retry and interrupt all pass; OMO-slim health check passes

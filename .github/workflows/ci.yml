@@ -89,7 +89,7 @@ jobs:
           if (-not (Test-Path (Join-Path $temp "oh-my-opencode-slim.json"))) { throw "oh-my-opencode-slim.json missing" }
           if (-not (Test-Path (Join-Path $temp "agent-board\server.mjs"))) { throw "agent-board/server.mjs missing" }
           $opencode = Get-Content (Join-Path $temp "opencode.json") -Raw | ConvertFrom-Json
-          if (@($opencode.plugins) -notcontains "oh-my-opencode-slim@3.0.7") { throw "plugin missing" }
+          if (@($opencode.plugins) -notcontains "oh-my-opencode-slim@3.0.8") { throw "plugin missing" }
           if ($opencode.default_agent -ne "orchestrator") { throw "default_agent missing" }
           $omo = Get-Content (Join-Path $temp "oh-my-opencode-slim.json") -Raw | ConvertFrom-Json
           if ($omo.preset -ne "session") { throw "expected session preset" }
@@ -106,7 +106,7 @@ jobs:
           node scripts/install-config.mjs opencode $existing config/opencode.json
           $merged = Get-Content $existing -Raw | ConvertFrom-Json
           if ($merged.model -ne "my-provider/my-model") { throw "model was not preserved" }
-          if (@($merged.plugins) -notcontains "oh-my-opencode-slim@3.0.7") { throw "plugin was not merged" }
+          if (@($merged.plugins) -notcontains "oh-my-opencode-slim@3.0.8") { throw "plugin was not merged" }
 
           $omoTarget = Join-Path $root "oh-my-opencode-slim.json"
           '{"preset":"opencode-go"}' | Set-Content $omoTarget -Encoding utf8

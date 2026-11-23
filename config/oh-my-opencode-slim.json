@@ -1,5 +1,5 @@
 {
-  "$schema": "https://unpkg.com/oh-my-opencode-slim@3.0.7/oh-my-opencode-slim.schema.json",
+  "$schema": "https://unpkg.com/oh-my-opencode-slim@3.0.8/oh-my-opencode-slim.schema.json",
   "preset": "session",
   "stripOrchestratorModel": true,
   "presets": {
@@ -138,10 +138,7 @@
     "type": "none"
   },
   "backgroundJobs": {
-    "concurrency": {
-      "defaultConcurrency": 2
-    },
-    "wallClockTimeoutMs": 0
+    "mode": "native"
   },
   "companion": {
     "enabled": false,

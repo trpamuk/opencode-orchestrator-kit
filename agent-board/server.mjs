@@ -1,4 +1,4 @@
-﻿import http from "node:http";
+import http from "node:http";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -851,7 +851,7 @@ async function setProjectProfile(
   const name = projectPresetName(project);
   const config = {
     $schema:
-      "https://unpkg.com/oh-my-opencode-slim@3.0.7/oh-my-opencode-slim.schema.json",
+      "https://unpkg.com/oh-my-opencode-slim@3.0.8/oh-my-opencode-slim.schema.json",
     preset: name,
     presets: { [name]: cloned },
   };

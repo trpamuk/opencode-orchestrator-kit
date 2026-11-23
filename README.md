@@ -1,6 +1,6 @@
 # OpenCode Orchestrator Kit
 
-**Version:** 0.4.19  
+**Version:** 0.5.0  
 **Platform:** Windows 10/11, macOS/Linux (experimental)  
 **Status:** early public preview
 
@@ -54,7 +54,7 @@ It does **not** replace OpenCode or OMO-slim. It configures them and adds the mi
 
 | Component | Purpose |
 |---|---|
-| `opencode.json` bootstrap | Enables OMO-slim 3.0.7 and selects the orchestrator |
+| `opencode.json` bootstrap | Enables OMO-slim 3.0.8 and selects the orchestrator |
 | OMO-slim config | Session-model preset, optional OpenCode Go preset, marketplace agents, Companion disabled, 30-minute background-task timeout |
 | Global `AGENTS.md` | Board, worktree, review and merge policy |
 | `orchestrator_append.md` | Mandatory automatic orchestration workflow |
@@ -90,7 +90,7 @@ It does **not** replace OpenCode or OMO-slim. It configures them and adds the mi
 
 Before running the kit, install:
 
-1. **OpenCode Desktop 2.3.x** (2.x supported; 2.3.2 is the tested version)
+1. **OpenCode Desktop 2.4.x** (2.3+ supported; 2.4.0 is the tested version)
 2. **Node.js 22+**
 3. **Any working provider/model configured in OpenCode** (OpenCode Go is optional)
 4. **Git** (recommended; Board Guard uses it to resolve the repository root)
@@ -114,7 +114,7 @@ This is the important part:
 
 On Windows, `install-gui.cmd` offers a WinForms wizard with a searchable model list. On macOS/Linux, use `bash install.sh` (experimental) and select the model inside OpenCode. Check the setup with `bash doctor.sh`; remove the service and shortcuts with `bash uninstall.sh`, or add `--purge` to remove the installed kit files while keeping your OpenCode config.
 
-You do **not** need to install OMO-slim manually. The kit writes the OMO-slim plugin configuration and lets OpenCode install the pinned `oh-my-opencode-slim@3.0.7` package on startup.
+You do **not** need to install OMO-slim manually. The kit writes the OMO-slim plugin configuration and lets OpenCode install the pinned `oh-my-opencode-slim@3.0.8` package on startup.
 
 You do **not** need an OpenCode Go subscription. The default preset inherits the model you selected in OpenCode. See [Model freedom](#model-freedom).
 
@@ -248,7 +248,7 @@ To sign the launcher, pass a certificate thumbprint (or `-PfxPath` / `-PfxPasswo
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\release.ps1 `
-  -Version 0.4.19 `
+  -Version 0.5.0 `
   -CertificateThumbprint <thumbprint> `
   -Publish
 ```
@@ -258,8 +258,8 @@ The `Release` GitHub Actions workflow can build and publish with the `WINDOWS_CE
 Verify a local or published release:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.19
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.4.19 -Online -RequireSignature
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.5.0
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1 -Version 0.5.0 -Online -RequireSignature
 ```
 
 The verifier checks the SHA256, embedded `VERSION` files, required ZIP entries, launcher version and signature, and the Scoop/Winget manifest URLs and hashes.
@@ -366,7 +366,7 @@ Start it manually:
 
 ### Browser tab is missing in OpenCode Desktop
 
-Some 2.2.x Desktop builds temporarily lost the Browser launcher. The kit is tested with OpenCode Desktop 2.3.2; if the entry is still missing, fully quit and reopen Desktop. You can use the desktop `Ajan Panosu` shortcut in the meantime.
+Some 2.2.x Desktop builds temporarily lost the Browser launcher. OpenCode 2.4.0 includes the persistent built-in browser and the launcher fix; if the entry is still missing, fully quit and reopen Desktop. You can use the desktop `Ajan Panosu` shortcut in the meantime.
 
 ### Model not found / no model selected
 
@@ -403,29 +403,15 @@ The dashboard now surfaces these calls directly:
 - check `git status` before re-running the task, because a stopped fixer may leave uncommitted changes;
 - if the session does not clear, fully restart OpenCode Desktop.
 
-The kit leaves `backgroundJobs.wallClockTimeoutMs` at OMO's default `0` (disabled), so long background subagents are not aborted automatically. The dashboard's **Durdur** button and the opt-in auto-stop are the safety net. If you want an automatic deadline, set it to a finite value (for example `7200000` for 2 hours). OMO #1860 documents a queued-input side effect after a wall-clock deadline or cancel.
-
-If the problem repeats and you prefer reliability over parallel background work, you can force same-provider subagents to run in the foreground:
-
-```json
-"backgroundJobs": {
-  "sameProviderPolicy": {
-    "opencode-go": "foreground"
-  }
-}
-```
-
-This avoids the native background path entirely, at the cost of serializing those subagents.
+OMO-slim 3.0.8 uses OpenCode's native subagent lifecycle. The kit sets `backgroundJobs.mode` to `native`; `off` disables Slim's task tools. The old `backgroundJobs.concurrency`, `wallClockTimeoutMs` and `sameProviderPolicy` settings were removed in 3.0.8, so there is no automatic 30-minute deadline or concurrency cap anymore.
 
 ### Subagent looks stuck or cut off
 
 Check the actual session outcome first: open **Detay**, look at the last message/tool, or ask the orchestrator for `task_status`. Three upstream issues can look similar:
 
-1. **The spinner keeps spinning but the session is `succeeded`.** OMO-slim 3.0.7 cannot read `client.session.status` on OpenCode 2.3.x V2, so a finished background task can stay marked `running` (OMO #1877). Restarting OpenCode does not clear it. Ask the orchestrator to run `task_cancel <taskID>`; that closes the stale board record. An upstream fix is pending.
+1. **The spinner keeps spinning but the session is `succeeded`.** The old OMO-slim 3.0.7 stale-board issue (#1877) is closed; 3.0.8 uses the native lifecycle and reads child task state from the host. If you still see it, confirm the plugin is `oh-my-opencode-slim@3.0.8` and reopen the issue with a fresh log.
 2. **The child ends with `interrupted` / `Step interrupted`.** OpenCode core aborts a foreground subagent when its parent session is shut down or stopped (OpenCode #61413). Do not close OpenCode Desktop or stop the parent while subagents are running; let them finish. The core fix is pending (PR #61414).
-3. **No activity for a long time and the session stays busy.** A provider stream can stall without an error (OpenCode #53747, #59565, #57127). Interrupt the child/parent, check `git status`, then retry. Check the provider's `timeout`/`chunkTimeout` settings and lower `backgroundJobs.concurrency.defaultConcurrency` if you use a rate-limited provider.
-
-If you set `backgroundJobs.wallClockTimeoutMs` yourself, it can abort background children at that deadline; the kit default is `0`.
+3. **No activity for a long time and the session stays busy.** A provider stream can stall without an error (OpenCode #53747, #59565, #57127). Interrupt the child/parent, check `git status`, then retry. Check the provider's `timeout`/`chunkTimeout` settings and reduce the number of parallel subagents if you use a rate-limited provider.
 
 For a fast recovery loop, set the panel stuck threshold to **5 minutes** and enable **Otomatik kurtar**. The panel then interrupts a silent child and retries it once; keep the panel page open for this to run. The same recovery is available manually with the **Kurtar** button on a stuck card.
 
@@ -433,7 +419,7 @@ For a fast recovery loop, set the panel stuck threshold to **5 minutes** and ena
 
 The dashboard checks the latest GitHub release once an hour. If a newer release exists, click the green badge to open the release page, or run `update.cmd` for a SHA256-verified one-click update. Re-running `install.cmd` is also safe and preserves your model, preset choice and `guard.log`.
 
-The kit is tested with **OpenCode Desktop 2.3.2** and **OMO-slim 3.0.7**. OMO-slim 3.0.7 was the latest release at the time of writing.
+The kit is tested with **OpenCode Desktop 2.4.0** and **OMO-slim 3.0.8**. OMO-slim 3.0.8 requires OpenCode 2.3 or newer and was the latest release at the time of writing.
 
 ### Appearance
 
@@ -513,7 +499,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Türkçe
 
-**Sürüm:** 0.4.19  
+**Sürüm:** 0.5.0  
 **Platform:** Windows 10/11, macOS/Linux (deneysel)
 
 Bu kit, OpenCode Desktop + OMO-slim + Ajan Panosu + Board Guard kurulumunu tek tıkla yapar.
@@ -531,7 +517,7 @@ OMO-slim güçlü bir orkestrasyon katmanıdır; ancak OpenCode Desktop içinde 
 5. OpenCode Desktop'ı tamamen kapatıp yeniden aç.
 6. Paneli aç: `http://127.0.0.1:43124/`
 
-macOS/Linux'ta `bash install.sh`, `bash doctor.sh` ve `bash uninstall.sh` kullanılabilir (deneysel). OMO-slim'i ayrıca kurmana gerek yok; kit gerekli config'i yazar ve OpenCode `oh-my-opencode-slim@3.0.7` paketini kendisi yükler.
+macOS/Linux'ta `bash install.sh`, `bash doctor.sh` ve `bash uninstall.sh` kullanılabilir (deneysel). OMO-slim'i ayrıca kurmana gerek yok; kit gerekli config'i yazar ve OpenCode `oh-my-opencode-slim@3.0.8` paketini kendisi yükler.
 
 ### Model özgürlüğü
 
@@ -578,9 +564,9 @@ Sadece projenin `.opencode/plans/current.md` ve `.opencode/plans/boards/*.md` al
 - OpenCode'da Browser sekmesi yoksa: Desktop'ı tamamen kapat/aç
 - Model bulunamıyorsa: OpenCode'da önce bir provider/model seç; kit varsayılan olarak model pinlemez. Panelde **Modeller** butonunu kullan veya `doctor.cmd` çıktısındaki `Varsayilan model` satırına bak. Test edilmiş OpenCode Go setup'ı için `preset` değerini `opencode-go` yap.
 - Alt görev 15 dk+ güncellenmezse panelde `takıldı?` görünür; üst oturumu durdurup OpenCode'u yeniden başlat.
-- Kalıcı sorunda `backgroundJobs.sameProviderPolicy` ile aynı sağlayıcıdaki alt görevler foreground çalıştırılabilir; bu paralelliği azaltır.
+- OMO-slim 3.0.8 native subagent lifecycle kullanır; `backgroundJobs.mode` `native` (varsayılan) veya `off` olabilir. Eski `concurrency`, `wallClockTimeoutMs` ve `sameProviderPolicy` ayarları 3.0.8'de kaldırıldı.
 - Güncelleme rozeti çıkarsa release sayfasını aç veya `update.cmd` çalıştır; SHA256 doğrulanır, `install.cmd` güvenle tekrar çalıştırılabilir.
-- Test edilen sürümler: **OpenCode Desktop 2.3.2** ve **OMO-slim 3.0.7**.
+- Test edilen sürümler: **OpenCode Desktop 2.4.0** ve **OMO-slim 3.0.8**.
 - Bildirimler için **Ayarlar → Bildirim izni**; otomatik durdurma opt-in'dir ve eşik + 5 dk sonra çalışır. Otomatik yeniden deneme de opt-in'dir; otomatik durdurmadan 30 sn sonra oturum başına 1 kez çalışır.
 - Proje bazlı profil sorunluysa **Modeller → Bu proje için → Proje profilini sıfırla**.
 - Diagnostic ZIP: `%USERPROFILE%\.config\opencode\agent-board\diagnostic.cmd`
