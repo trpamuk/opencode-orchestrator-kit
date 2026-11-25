@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.1 - 2026-11-25
+
+- Verified compatibility with **OpenCode Desktop 2.4.1**
+- Panel `/health`, `/api/state`, `/api/models`, `/api/session-detail` and model test pass on 2.4.1; OMO-slim 3.0.8 health check passes and `doctor.ps1` is fully green
+- No config or code changes were needed: 2.4.1 is a patch release with macOS 12 SQLite, config-only provider model visibility, `/btw` unread state, model speed tiers, focus/Tab navigation and plugin automation fixes
+- OpenCode 2.4.1 also improves finished subagent handling in the Rust CLI; the kit keeps `oh-my-opencode-slim@3.0.8` as the tested plugin
+- Updated the tested-version documentation and release/verify examples to 0.5.1
+
 ## 0.5.0 - 2026-11-23
 
 - Updated to **OMO-slim 3.0.8**, which requires OpenCode 2.3+ and uses the native subagent lifecycle
