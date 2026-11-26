@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.2 - 2026-11-26
+
+- Verified compatibility with **OpenCode Desktop 2.4.2**
+- Panel `/health`, `/api/state`, `/api/models`, `/api/session-detail` and model test pass on 2.4.2; OMO-slim 3.0.8 health check passes and `doctor.ps1` is fully green
+- No config or code changes were needed: 2.4.2 is a feature/fix release with GPT-6.2 prompts, OpenCode Go onboarding, Esc-to-edit, site-scoped web-fetch approvals, automation failure handling, archived-session sends, Plan mode prompt rules and Code Mode image/video tools
+- OpenCode 2.4.2 moves subagents with their parent session and shows the parent's side-panel tabs in subagent sessions; the panel's session-tree tracking remains compatible
+- Promise plugin API calls now honor abort signals, which benefits OMO-slim's native subagent lifecycle
+- Updated the tested-version documentation and release/verify examples to 0.5.2
+
 ## 0.5.1 - 2026-11-25
 
 - Verified compatibility with **OpenCode Desktop 2.4.1**
